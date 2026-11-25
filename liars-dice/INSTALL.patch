@@ -1,0 +1,2290 @@
+diff --git a/STATUS.md b/STATUS.md
+index eb1f5f86..cd8f89fc 100644
+--- a/STATUS.md
++++ b/STATUS.md
+@@ -19,6 +19,14 @@ Check the release candidate across Studio and Control Room, capture and export,
+ 
+ Local synthesized speech drives the bundled Pete rig through the Studio's dialogue mixer. Chromium with local Flite has verified rendered mouth movement, signal on the Program mixer, and neutral reset on Stop, normal completion, and production shutdown. This is audio-level mouth movement. Phoneme timing, phoneme-specific shapes, real device checks, and casting through the shared camera pool remain open. The original Studio cast remains the default.
+ 
++## 2026-11-24: Liar's Dice at the Vortex Bar booth
++
++Ledger: `handoffs/LIARS_DICE_2026-11-24.md`.
++
++- Click the booth table in the Vortex Bar in `/walk` and choose "Play Liar's Dice". Rules, dice and opponents run on the host (`modules/liars_dice.py`, `modules/liars_dice_api.py`); one saved game per signed-in person, kept across restarts. The table is `static/world_walk_liarsdice.js`.
++- Tested: 79 engine tests, 25 route tests, and one real-browser test against `run_reach.py` (click the table, play, leave, restart PubCast, resume, host unreachable, forget). Not tested: how the sound sounds, phones, a screen reader. Not built: first-person hands and cup art, 3D dice, opponent avatars and voices.
++- The table spot is my placement (status "proposed"). `tools/world_src/gen_placements.py` is behind the committed `data/world/placements.json` (it would delete the 2026-11-02 floor-painting hotspot); do not regenerate from it until it is brought up to date.
++
+ ## 2026-11-02: Production notes (sticky notes) and the PubCast profile
+ 
+ Ledger: `handoffs/PRODUCTION_NOTES_2026-11-02.md`.
+diff --git a/data/world/placements.json b/data/world/placements.json
+index 12d0dee5..d8856e9b 100644
+--- a/data/world/placements.json
++++ b/data/world/placements.json
+@@ -14628,6 +14628,22 @@
+     }
+    ],
+    "hotspots": [
++    {
++     "id": "booth-table-dice",
++     "label": "Booth table: Liar's Dice",
++     "at": [
++      240,
++      585
++     ],
++     "r": 45,
++     "status": "proposed",
++     "note": "MY PROPOSAL, not yours: Josie asked for Liar's Dice at the bar and to click the table to play. I put the spot on the table of the nearest striped booth; the exact table is my reading of the picture, tell me if she meant another.",
++     "action": {
++      "type": "custom",
++      "event": "Sit down to a game of Liar's Dice against one to three opponents.",
++      "minigame": "liarsdice"
++     }
++    },
+     {
+      "id": "booth-sit",
+      "label": "Sit (booth)",
+diff --git a/handoffs/LIARS_DICE_2026-11-24.md b/handoffs/LIARS_DICE_2026-11-24.md
+new file mode 100644
+index 00000000..dec7a078
+--- /dev/null
++++ b/handoffs/LIARS_DICE_2026-11-24.md
+@@ -0,0 +1,100 @@
++# Liar's Dice at the Vortex Bar booth — 2026-11-24
++
++Branch: `claude/liars-dice-bar-2026-11-24`. `main` is untouched.
++
++## What Josie asked for
++
++In her words (the ChatGPT transcript she attached, ending with the instruction to that assistant): "Yours is dressing
++the bar and Liar's Dice, please." "I want to be able to walk around, I want to be able to go into the bar, and I want to
++be able to play Liar's Dice…" "This needs to be tight, solid, professional, stable code… Do it the right way."
++
++Game rules she gave: up to four players (you plus one to three opponents); each bid must be higher (more dice, or the same
++number on a higher face); a "call Liar" action reveals the dice; the loser of the call loses a die; a player with no dice
++is out; the last player standing wins. Also wanted: dice-rolling visuals, a jangly dice sound, a cup; ideally a
++first-person view with hands, and opponents with avatars and voices.
++
++The cameras, control room, jukebox, TV and other minigames were named by her as a different AI's job. Nothing in them
++was touched. The Sir Purphulous lore in the transcript was context only and nothing in it was used or changed.
++
++## Decision about the bar art
++
++The Vortex Bar picture, floor trace, occluders and doors were **not changed**. The bar was already walkable at `/walk`.
++I did not re-dress it. If "dress the bar" means new art, that needs Josie's pictures.
++
++## What was built
++
++| Piece | Where |
++| --- | --- |
++| Rules engine: seats, bids, calls, wild-ones option, elimination, winner, opponents, save/load with strict checking | `modules/liars_dice.py` |
++| Routes: get / start / bid / call / next / leave, one game per signed-in person, stale-click protection | `modules/liars_dice_api.py`, registered in `main.py` |
++| The table: setup, seats, your dice, bidding controls, Call Liar, reveal with matching dice marked, replay of what opponents did, synthesized rattle / thud / chimes, mute, keyboard and screen-reader support, reduced motion | `static/world_walk_liarsdice.js` |
++| The click spot on the booth table, and the walker's "Play Liar's Dice" button | `tools/world_src/gen_placements.py`, `data/world/placements.json`, `static/world/world.json`, `static/world_walk.html` |
++
++How it works: the host holds every die. The browser gets only your own dice. The others' dice are sent only in the
++reveal that follows a call. A game is saved on the host after every move, so it survives leaving the table, closing the
++browser and restarting PubCast. Opponents use the exact chance that a bid is true given their own dice, with three
++temperaments (cautious, balanced, bold) picked at random per seat.
++
++## Decisions I made that are Josie's to confirm
++
++1. You open round one. The loser of a call opens the next round (if they are out, the next seat in turn).
++2. If you run out of dice the game ends (the opponents do not play on without you).
++3. Ones are not wild by default. A "Ones are wild" checkbox at setup turns it on; when it is on, ones count for any
++   face except when the bid is on ones.
++4. Five dice each, at most 3 opponents, at least 1.
++5. **The table spot is my placement** (`booth-table-dice`, status "proposed", at about 240,585 in the picture, on the
++   nearest striped booth). I could not see the table clearly. Marked as my proposal in its note. Tell me if she meant another.
++6. Opponents are named "Seat 2" to "Seat 4". No avatars, voices or banter.
++
++## Tested (Linux, Python 3.13, headless Chromium)
++
++- `tests/test_liars_dice_engine.py` — 79 passed. Raise rule table, wrong turn / phase, calls with hand-stacked dice
++  (including wild ones), elimination and who opens next, human knocked out, win, view redaction, 400 opponent games
++  across all styles with wild on and off (only legal moves, every game ends), exact binomial arithmetic checked against
++  counting every outcome, opponent tendencies, record round-trip, 28 kinds of damaged saved game refused.
++  Mutation check: breaking the "bid is true" test, the raise rule, and the view's hidden dice each made a test fail.
++- `tests/test_liars_dice_api.py` — 25 passed: sign-in required when auth is enforced, one table per person, bad input
++  refused with nothing changed, stale clicks refused with the current table, hidden dice absent from replies, whole
++  games played through the routes, restart on the same data folder, damaged save recovers.
++- `tests/test_liars_dice_browser.py` — 1 passed, against the real host (`run_reach.py`) and real Chromium: walk to the
++  bar, click the table at its place in the picture, "Play Liar's Dice", walking keys blocked while open, sit down, only
++  five dice on the page, play by clicking until a call, every hand shown with matches marked, next round hides them
++  again, Esc keeps the game and does not walk you back a room, stop PubCast and start it again and the same game
++  resumes ("Welcome back"), host unreachable shows a plain message and "Try again" recovers, two-click "Forget this game".
++  Screenshots were looked at (bubble, setup, round, reveal, offline).
++- Generated data: `data/world/placements.json` differs from the previous version only by the one new hotspot;
++  `static/world/world.json` is 16 added lines and no removed lines.
++
++Regression run (not the full suite): 10 neighbouring files (world walk host and browser, studio progress, world data,
++route authority and authorization parity, production notes limits, pubworld) — 164 passed, 3 failed, 1 error. The same
++3 failures (`test_main_route_authorization_parity.py`: bot speak, governance audit, governance user audit) and the same
++1 order-dependent error (`test_pubworld_private.py::test_a_change_of_room_is_announced_once...`, passes alone) occur on
++the untouched starting commit run the same way, so they are not from this change; I did not look into them.
++The **full suite was not completed**: it ran past 30 minutes and was stopped, and `tests/primp_chromium` errors here
++(not investigated). Baseline before this work: 131 tests green in the set I ran first.
++
++## Not tested / not built
++
++- **Sound has never been heard.** The sounds are made with Web Audio in the browser; headless Chromium cannot play
++  them. The code runs without error, but whether they sound good ("jangly") is untested. The rattle will probably need tuning by ear.
++- Dice are drawn with CSS pips, flat, with a short tumble. No 3D dice physics, no cup art, no first-person view with
++  hands: those need art assets that do not exist here.
++- No opponent avatars, voices or banter lines (her text, not mine to write).
++- Phone / touch layout: sized to fit narrow screens but not tested on a phone.
++- Keyboard-only play and a screen reader were designed for (focus kept, live status, dialog role) but only the
++  keyboard Esc path was run; no screen reader was used.
++- The jukebox, TV, cameras and other minigames: not touched.
++- The "Implementation Pack v1" canvas mentioned in the transcript was not in the pasted text, so nothing was taken from it.
++
++## A problem found and left alone
++
++`tools/world_src/gen_placements.py` has fallen behind `data/world/placements.json`: running it as written **deletes**
++Josie's 2026-11-02 "floor-painting" hotspot in the manager's office and her note on the painting view. I did not
++regenerate from it. I restored the committed file and added only the new hotspot (also added to the generator so the
++hotspot is not lost if it is regenerated later), then rebuilt `world.json` with `tools/build_world_json.py`.
++Someone should bring the generator up to date with her 2026-11-02 data before anyone runs it again.
++
++## Previous version
++
++Everything changed is in git history on this branch's parent. Backups of the two files I changed by script:
++the previous `data/world/placements.json` and `static/world/world.json` are the committed ones.
+diff --git a/handoffs/installed/LIARS_DICE_INSTALLED_2026-11-25.md b/handoffs/installed/LIARS_DICE_INSTALLED_2026-11-25.md
+new file mode 100644
+index 00000000..1ad4e747
+--- /dev/null
++++ b/handoffs/installed/LIARS_DICE_INSTALLED_2026-11-25.md
+@@ -0,0 +1,27 @@
++# Installed: Liar's Dice at the Vortex Bar booth (2026-11-25)
++
++**Status: installed in main-assembly and proven. Copied to Parts-Live-Archive as `liars-dice/`.**
++
++## What it is
++
++Liar's Dice you can play in `/walk`: walk into the Vortex Bar, click the booth table, choose "Play Liar's Dice". The host holds the dice and runs the opponents (one to three), one saved game per signed-in person, kept across restarts. The full build notes are in `handoffs/LIARS_DICE_2026-11-24.md`.
++
++## Where it came from
++
++pre-dec branch `claude/liars-dice-bar-2026-11-24`, commit 736273e (Nov 24, 8:15 PM PT). That branch was built on pre-dec main 538a40f, which is the same commit December main started from, so it went in with no conflicts and nothing was changed in it. The branch is still in pre-dec.
++
++## What it changed in main-assembly
++
++New: `modules/liars_dice.py`, `modules/liars_dice_api.py`, `static/world_walk_liarsdice.js`, three test files, `handoffs/LIARS_DICE_2026-11-24.md`.
++Edited: `main.py` (three lines that mount the Liar's Dice routes, after the studio progress routes), `static/world_walk.html` (loads the table, blocks walking while it is open, adds the "Play Liar's Dice" button), `data/world/placements.json` and `static/world/world.json` (the booth table click spot), `tools/world_src/gen_placements.py` (the same spot in the generator), `STATUS.md`.
++
++## How it was proven (Nov 25, in main-assembly after installing)
++
++- Its own tests: `tests/test_liars_dice_engine.py` and `tests/test_liars_dice_api.py`, 104 passed (Python 3.13, fastapi 0.115.14, starlette 0.41.3, httpx 0.28.1, the versions requirements.txt asks for).
++- The app boots with it: main.py imports and builds the app. Routes went from 199 before installing to 204 after; the five new ones are `/api/minigames/liarsdice` plus `/start`, `/bid`, `/call`, `/next`. Packages that are not installed here and not okayed to install (scikit-learn, numpy, bcrypt, psutil, websockets and a few Windows-only ones) were replaced by empty stand-ins for the boot only, so this check proves the wiring, not those features.
++- Every changed Python file compiles, the new script passes `node --check`, and both changed JSON files load.
++- Not run here: `tests/test_liars_dice_browser.py` needs a real browser (playwright). Its earlier pass is recorded in the build notes, not repeated.
++
++## Still open (from the build notes, for her)
++
++The table spot is a proposal ("proposed" status). Opponents have no avatars or voices yet. The generator `tools/world_src/gen_placements.py` is behind the committed placements file; do not regenerate from it until it is brought up to date.
+diff --git a/main.py b/main.py
+index bcf92ab2..4374c8ad 100644
+--- a/main.py
++++ b/main.py
+@@ -2023,6 +2023,9 @@ app.include_router(_avatar_imports)
+ # Bella Faux Pas Studio progress (room, spot, who you walk as, your avatars, size tuning), per owner on this host.
+ from modules.studio_progress import create_studio_progress_router  # noqa: E402
+ app.include_router(create_studio_progress_router(DATA_DIR))
++# Liar's Dice at the Vortex Bar booth: server-side game, one per signed-in person (modules/liars_dice.py).
++from modules.liars_dice_api import create_liars_dice_router  # noqa: E402
++app.include_router(create_liars_dice_router(DATA_DIR))
+ from modules.keymap_store import create_keymap_router  # noqa: E402
+ app.include_router(create_keymap_router(DATA_DIR))          # per-person key assignments (static/keymap.js)
+ from modules.camera_moves import create_camera_moves_router  # noqa: E402
+diff --git a/modules/liars_dice.py b/modules/liars_dice.py
+new file mode 100644
+index 00000000..8f77f81b
+--- /dev/null
++++ b/modules/liars_dice.py
+@@ -0,0 +1,444 @@
++"""Liar's Dice: the rules, the opponents and the table state. Pure Python, no web framework, no I/O.
++
++The host owns the dice. The browser only ever receives ``Game.view()``, which holds the viewer's own dice and the
++*number* of dice every other seat has left. Opponents' dice are revealed only in the ``reveal`` block that follows a
++call, which is exactly when a real table would turn the cups over. (Routes and saving: modules/liars_dice_api.py.)
++
++Rules implemented (Josie, 2026-11-24 spec):
++
++* Two to four seats: the human ("you") and one to three computer opponents. Everyone starts with five dice.
++* Every round all dice are rolled and kept hidden. The first seat opens with a bid: "count x face".
++* Each later bid must go up: a higher count, or the same count on a higher face. Counts cannot exceed the
++  number of dice still in play.
++* Instead of bidding, the next seat may call "Liar" on the standing bid. All dice are revealed. If at least
++  ``count`` dice show the bid face the bid was true and the caller loses a die; otherwise the bidder loses one.
++* Optional rule ``wild_ones`` (off by default): ones count as any face except when the bid is on ones.
++* A seat with no dice is out. The loser of a round (or, if that seat is out, the next seat still in) opens the
++  next round. The last seat standing wins. If the human is knocked out the game is over for the human.
++
++Round-ending decisions are made here, never by the browser: a bid or call from the wrong seat, the wrong phase, or
++on a stale move number is refused with ``RuleError``.
++"""
++from __future__ import annotations
++
++import math
++import random
++import uuid
++from dataclasses import dataclass, field
++from typing import Any, Dict, List, Optional, Sequence, Tuple
++
++FACES: Tuple[int, ...] = (1, 2, 3, 4, 5, 6)
++DICE_EACH = 5
++MIN_OPPONENTS = 1
++MAX_OPPONENTS = 3
++HUMAN_ID = "you"
++STYLES: Tuple[str, ...] = ("cautious", "balanced", "bold")
++
++# How each opponent style thinks (all numbers are probabilities a bid is true, from that seat's point of view):
++#   call_below  call "Liar" when the standing bid is less likely true than this
++#   raise_at    raise honestly to the lowest bid at least this likely
++#   bluff       chance per turn of raising to a lowest bid that is merely plausible (>= BLUFF_FLOOR)
++_STYLE = {
++    "cautious": {"call_below": 0.42, "raise_at": 0.58, "bluff": 0.05},
++    "balanced": {"call_below": 0.35, "raise_at": 0.48, "bluff": 0.10},
++    "bold":     {"call_below": 0.27, "raise_at": 0.38, "bluff": 0.18},
++}
++BLUFF_FLOOR = 0.12
++CALL_NOISE = 0.05          # spread of the random nudge to call_below, so an opponent is not a fixed threshold
++MAX_AI_STEPS = 400         # a round cannot hold more than 6 x total-dice raises; this is only a hard stop
++
++PHASES = ("bidding", "reveal", "over")
++_REVEAL_KEYS = {"caller", "bidder", "count", "face", "matching", "bid_true", "loser", "hands", "wild_ones"}
++
++
++class RuleError(ValueError):
++    """The move is not allowed. The message is written to be shown to the person."""
++
++
++@dataclass
++class Seat:
++    id: str
++    name: str
++    human: bool
++    style: str = "balanced"
++    remaining: int = DICE_EACH
++    dice: List[int] = field(default_factory=list)   # in play only while the phase is "bidding"; empty otherwise
++
++
++@dataclass
++class Game:
++    seats: List[Seat]
++    wild_ones: bool = False
++    game_id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
++    round: int = 1
++    turn: int = 0                               # index of the seat that must act
++    bid_count: int = 0                          # 0 means no standing bid
++    bid_face: int = 0
++    bidder: int = -1                            # index of the seat that made the standing bid
++    phase: str = "bidding"
++    move: int = 0                               # counts every change, so a stale click can be refused
++    reveal: Optional[Dict[str, Any]] = None
++    winner: Optional[str] = None
++    next_first: int = 0                         # who opens the next round (set when a round ends)
++    rng: random.Random = field(default_factory=random.SystemRandom, repr=False, compare=False)
++
++    # ── queries ────────────────────────────────────────────────────────────────
++
++    @property
++    def has_bid(self) -> bool:
++        return self.bid_count > 0
++
++    def total_dice(self) -> int:
++        return sum(s.remaining for s in self.seats)
++
++    def alive(self) -> List[int]:
++        return [i for i, s in enumerate(self.seats) if s.remaining > 0]
++
++    def seat_index(self, seat_id: str) -> int:
++        for i, s in enumerate(self.seats):
++            if s.id == seat_id:
++                return i
++        raise RuleError("There is no such seat at this table.")
++
++    def next_alive(self, index: int) -> int:
++        """The next seat after ``index`` (clockwise) that still has dice."""
++        n = len(self.seats)
++        for step in range(1, n + 1):
++            j = (index + step) % n
++            if self.seats[j].remaining > 0:
++                return j
++        raise RuleError("No seat has any dice left.")
++
++    def is_legal_raise(self, count: int, face: int) -> bool:
++        return legal_raise(self.bid_count, self.bid_face, count, face, self.total_dice())
++
++    def legal_raises(self) -> List[Tuple[int, int]]:
++        """Every raise open to the seat to act, lowest first."""
++        total = self.total_dice()
++        return [(c, f) for c in range(1, total + 1) for f in FACES
++                if legal_raise(self.bid_count, self.bid_face, c, f, total)]
++
++    def matching(self, face: int, dice_by_seat: Sequence[Sequence[int]]) -> int:
++        n = 0
++        for dice in dice_by_seat:
++            for d in dice:
++                if d == face or (self.wild_ones and d == 1 and face != 1):
++                    n += 1
++        return n
++
++    # ── actions ────────────────────────────────────────────────────────────────
++
++    def _need_phase(self, phase: str) -> None:
++        if self.phase != phase:
++            word = {"bidding": "bidding is not open right now", "reveal": "the round is already over",
++                    "over": "the game is over"}[self.phase]
++            raise RuleError(f"That is not possible: {word}.")
++
++    def bid(self, seat_index: int, count: int, face: int) -> List[Dict[str, Any]]:
++        self._need_phase("bidding")
++        if seat_index != self.turn:
++            raise RuleError("It is not that seat's turn.")
++        if isinstance(count, bool) or isinstance(face, bool) or not isinstance(count, int) or not isinstance(face, int):
++            raise RuleError("A bid is a whole number of dice and a face from 1 to 6.")
++        if face not in FACES:
++            raise RuleError("The face must be from 1 to 6.")
++        total = self.total_dice()
++        if count < 1 or count > total:
++            raise RuleError(f"The count must be from 1 to {total}, the number of dice in play.")
++        if not self.is_legal_raise(count, face):
++            raise RuleError(f"A bid must beat {self.bid_count} x {self.bid_face}: a higher count, or the same count on a higher face.")
++        self.bid_count, self.bid_face, self.bidder = count, face, seat_index
++        self.turn = self.next_alive(seat_index)
++        self.move += 1
++        return [{"type": "bid", "seat": self.seats[seat_index].id, "count": count, "face": face}]
++
++    def call(self, seat_index: int) -> List[Dict[str, Any]]:
++        self._need_phase("bidding")
++        if seat_index != self.turn:
++            raise RuleError("It is not that seat's turn.")
++        if not self.has_bid:
++            raise RuleError("There is no bid to call yet. Open the round with a bid.")
++        caller, bidder = seat_index, self.bidder
++        hands = {s.id: list(s.dice) for s in self.seats if s.remaining > 0}
++        matching = self.matching(self.bid_face, [s.dice for s in self.seats])
++        bid_true = matching >= self.bid_count
++        loser = caller if bid_true else bidder
++        events: List[Dict[str, Any]] = [
++            {"type": "call", "seat": self.seats[caller].id, "against": self.seats[bidder].id},
++            {"type": "reveal", "hands": hands, "face": self.bid_face, "count": self.bid_count,
++             "matching": matching, "bid_true": bid_true, "loser": self.seats[loser].id},
++        ]
++        self.reveal = {"caller": self.seats[caller].id, "bidder": self.seats[bidder].id, "count": self.bid_count,
++                       "face": self.bid_face, "matching": matching, "bid_true": bid_true,
++                       "loser": self.seats[loser].id, "hands": hands, "wild_ones": self.wild_ones}
++        for s in self.seats:
++            s.dice = []
++        self.seats[loser].remaining -= 1
++        events.append({"type": "lost_die", "seat": self.seats[loser].id, "remaining": self.seats[loser].remaining})
++        if self.seats[loser].remaining == 0:
++            events.append({"type": "out", "seat": self.seats[loser].id})
++        human_alive = any(s.human and s.remaining > 0 for s in self.seats)
++        alive = self.alive()
++        if len(alive) == 1 or not human_alive:
++            self.phase = "over"
++            self.winner = self.seats[alive[0]].id if len(alive) == 1 else None
++            events.append({"type": "over", "winner": self.winner, "human_won": bool(self.winner and self.seats[self.seek_human()].id == self.winner)})
++        else:
++            self.phase = "reveal"
++            self.next_first = loser if self.seats[loser].remaining > 0 else self.next_alive(loser)
++        self.move += 1
++        return events
++
++    def seek_human(self) -> int:
++        for i, s in enumerate(self.seats):
++            if s.human:
++                return i
++        raise RuleError("There is no human seat at this table.")
++
++    def next_round(self) -> List[Dict[str, Any]]:
++        self._need_phase("reveal")
++        self.round += 1
++        self.roll_all()
++        self.bid_count = self.bid_face = 0
++        self.bidder = -1
++        self.reveal = None
++        self.turn = self.next_first
++        self.phase = "bidding"
++        self.move += 1
++        return [{"type": "round", "round": self.round, "first": self.seats[self.turn].id}]
++
++    def roll_all(self) -> None:
++        for s in self.seats:
++            s.dice = sorted(self.rng.randint(1, 6) for _ in range(s.remaining))
++
++    # ── opponents ──────────────────────────────────────────────────────────────
++
++    def advance_ai(self) -> List[Dict[str, Any]]:
++        """Play every computer seat's turn until the human must act or the round ends."""
++        events: List[Dict[str, Any]] = []
++        for _ in range(MAX_AI_STEPS):
++            if self.phase != "bidding" or self.seats[self.turn].human:
++                return events
++            idx = self.turn
++            decision = ai_decide(self, idx)
++            events += self.call(idx) if decision[0] == "call" else self.bid(idx, decision[1], decision[2])
++        raise RuntimeError("Opponents did not finish their turns (rule bug)")
++
++    # ── what the browser may see ───────────────────────────────────────────────
++
++    def view(self) -> Dict[str, Any]:
++        human = self.seats[self.seek_human()]
++        playing = self.phase == "bidding"
++        you_turn = playing and self.seats[self.turn].human
++        total = self.total_dice()
++        return {
++            "game_id": self.game_id,
++            "round": self.round,
++            "phase": self.phase,
++            "move": self.move,
++            "wild_ones": self.wild_ones,
++            "turn": self.seats[self.turn].id if playing else None,
++            "bid": ({"count": self.bid_count, "face": self.bid_face, "by": self.seats[self.bidder].id}
++                    if self.has_bid and playing else None),
++            "total_dice": total,
++            "you": {"id": human.id, "dice": list(human.dice)},
++            "seats": [{"id": s.id, "name": s.name, "human": s.human, "remaining": s.remaining, "out": s.remaining == 0}
++                      for s in self.seats],
++            "can_call": bool(you_turn and self.has_bid),
++            "can_raise": bool(you_turn and self.legal_raises()),
++            "reveal": self.reveal,
++            "winner": self.winner,
++            "you_out": human.remaining == 0,
++        }
++
++    # ── saving ─────────────────────────────────────────────────────────────────
++
++    def to_record(self) -> Dict[str, Any]:
++        """Everything, including every seat's hidden dice. Host-side only: never send this to a browser."""
++        return {
++            "v": 1, "game_id": self.game_id, "round": self.round, "turn": self.turn, "wild_ones": self.wild_ones,
++            "bid_count": self.bid_count, "bid_face": self.bid_face, "bidder": self.bidder, "phase": self.phase,
++            "move": self.move, "reveal": self.reveal, "winner": self.winner, "next_first": self.next_first,
++            "seats": [{"id": s.id, "name": s.name, "human": s.human, "style": s.style, "remaining": s.remaining,
++                       "dice": list(s.dice)} for s in self.seats],
++        }
++
++    @classmethod
++    def from_record(cls, rec: Any, rng: Optional[random.Random] = None) -> "Game":
++        """Rebuild a saved game, refusing anything that is not a state this engine could have produced."""
++        def bad(why: str) -> ValueError:
++            return ValueError("saved Liar's Dice game is not valid: " + why)
++
++        def whole(v: Any, lo: int, hi: int, what: str) -> int:
++            if isinstance(v, bool) or not isinstance(v, int) or not lo <= v <= hi:
++                raise bad(f"{what} must be a whole number from {lo} to {hi}")
++            return v
++
++        if not isinstance(rec, dict) or rec.get("v") != 1:
++            raise bad("unknown format")
++        raw_seats = rec.get("seats")
++        if not isinstance(raw_seats, list) or not MIN_OPPONENTS + 1 <= len(raw_seats) <= MAX_OPPONENTS + 1:
++            raise bad("wrong number of seats")
++        seats: List[Seat] = []
++        for i, rs in enumerate(raw_seats):
++            if not isinstance(rs, dict):
++                raise bad("a seat is not an object")
++            sid, name, human, style = rs.get("id"), rs.get("name"), rs.get("human"), rs.get("style")
++            if not isinstance(sid, str) or not sid or len(sid) > 40 or not isinstance(name, str) or not name or len(name) > 60:
++                raise bad("a seat has no id or name")
++            if not isinstance(human, bool) or style not in STYLES:
++                raise bad("a seat has a bad type or style")
++            remaining = whole(rs.get("remaining"), 0, DICE_EACH, "dice remaining")
++            dice = rs.get("dice")
++            if not isinstance(dice, list) or any(isinstance(d, bool) or d not in FACES for d in dice):
++                raise bad("dice must be faces from 1 to 6")
++            seats.append(Seat(sid, name, human, style, remaining, list(dice)))
++        if len({s.id for s in seats}) != len(seats):
++            raise bad("seat ids repeat")
++        if [s.human for s in seats].count(True) != 1 or not seats[0].human:
++            raise bad("there must be exactly one human, in the first seat")
++        phase = rec.get("phase")
++        if phase not in PHASES:
++            raise bad("unknown phase")
++        n = len(seats)
++        turn = whole(rec.get("turn"), 0, n - 1, "turn")
++        next_first = whole(rec.get("next_first"), 0, n - 1, "next opener")
++        bid_count = whole(rec.get("bid_count"), 0, DICE_EACH * n, "bid count")
++        bid_face = whole(rec.get("bid_face"), 0, 6, "bid face")
++        bidder = whole(rec.get("bidder"), -1, n - 1, "bidder")
++        if (bid_count == 0) != (bid_face == 0) or (bid_count == 0) != (bidder == -1):
++            raise bad("the standing bid is incomplete")
++        if phase == "bidding":
++            if any(len(s.dice) != s.remaining for s in seats):
++                raise bad("a seat's dice do not match its count")
++            if seats[turn].remaining == 0:
++                raise bad("the seat to act is out")
++            if bid_count > sum(s.remaining for s in seats):
++                raise bad("the standing bid is larger than the dice in play")
++            if bid_count and bid_face == 0:
++                raise bad("the standing bid has no face")
++            if bid_count and seats[bidder].remaining == 0:
++                raise bad("the seat that made the standing bid is out")
++        else:
++            if any(s.dice for s in seats):
++                raise bad("dice are held outside a round")
++            if phase == "reveal" and seats[next_first].remaining == 0:
++                raise bad("the next round would open on a seat that is out")
++        winner = rec.get("winner")
++        if winner is not None and winner not in {s.id for s in seats}:
++            raise bad("the winner is not a seat")
++        if (phase == "over") != (winner is not None or not any(s.human and s.remaining > 0 for s in seats)):
++            raise bad("the game is over, or not, inconsistently")
++        reveal = rec.get("reveal")
++        if (phase == "bidding") != (reveal is None):
++            raise bad("reveal does not match the phase")
++        if reveal is not None:
++            ids = {s.id for s in seats}
++            hands = reveal.get("hands") if isinstance(reveal, dict) else None
++            ok = (isinstance(reveal, dict) and set(reveal) == _REVEAL_KEYS
++                  and reveal["caller"] in ids and reveal["bidder"] in ids and reveal["loser"] in ids
++                  and isinstance(reveal["bid_true"], bool) and isinstance(reveal["wild_ones"], bool)
++                  and all(isinstance(reveal[k], int) and not isinstance(reveal[k], bool) for k in ("count", "face", "matching"))
++                  and reveal["face"] in FACES
++                  and isinstance(hands, dict) and set(hands) <= ids
++                  and all(isinstance(h, list) and len(h) <= DICE_EACH and all(not isinstance(d, bool) and d in FACES for d in h)
++                          for h in hands.values()))
++            if not ok:
++                raise bad("the reveal is malformed")
++        wild = rec.get("wild_ones")
++        if not isinstance(wild, bool):
++            raise bad("wild_ones must be true or false")
++        gid = rec.get("game_id")
++        if not isinstance(gid, str) or not 1 <= len(gid) <= 40:
++            raise bad("bad game id")
++        g = cls(seats=seats, wild_ones=wild, game_id=gid, round=whole(rec.get("round"), 1, 10_000, "round"), turn=turn,
++                bid_count=bid_count, bid_face=bid_face, bidder=bidder, phase=phase,
++                move=whole(rec.get("move"), 0, 10_000_000, "move"), reveal=reveal, winner=winner, next_first=next_first)
++        if rng is not None:
++            g.rng = rng
++        return g
++
++
++# ── rules helpers ──────────────────────────────────────────────────────────────
++
++def legal_raise(prev_count: int, prev_face: int, count: int, face: int, total_dice: int) -> bool:
++    """Is ``count x face`` an allowed bid after ``prev_count x prev_face`` (0 x 0 means no bid yet)?"""
++    if face not in FACES or not 1 <= count <= total_dice:
++        return False
++    if prev_count == 0:
++        return True
++    return count > prev_count or (count == prev_count and face > prev_face)
++
++
++def new_game(opponents: int, wild_ones: bool = False, rng: Optional[random.Random] = None) -> Game:
++    """Start a game: you plus ``opponents`` (1 to 3) computer seats, dice rolled, you to open round one."""
++    if isinstance(opponents, bool) or not isinstance(opponents, int) or not MIN_OPPONENTS <= opponents <= MAX_OPPONENTS:
++        raise RuleError(f"Choose {MIN_OPPONENTS} to {MAX_OPPONENTS} opponents.")
++    if not isinstance(wild_ones, bool):
++        raise RuleError("wild_ones must be true or false.")
++    rng = rng or random.SystemRandom()
++    seats = [Seat(HUMAN_ID, "You", True)]
++    styles = [rng.choice(STYLES) for _ in range(opponents)]
++    for n, style in enumerate(styles, start=2):
++        seats.append(Seat(f"seat{n}", f"Seat {n}", False, style))
++    g = Game(seats=seats, wild_ones=wild_ones, rng=rng)
++    g.roll_all()
++    return g
++
++
++# ── the opponents' reasoning ───────────────────────────────────────────────────
++
++def binomial_at_least(n: int, p: float, k: int) -> float:
++    """P(X >= k) for X ~ Binomial(n, p), summed exactly (n never exceeds 20 here)."""
++    if k <= 0:
++        return 1.0
++    if k > n:
++        return 0.0
++    q = 1.0 - p
++    return min(1.0, sum(math.comb(n, i) * p ** i * q ** (n - i) for i in range(k, n + 1)))
++
++
++def _own_matching(game: Game, dice: Sequence[int], face: int) -> int:
++    return game.matching(face, [dice])
++
++
++def bid_probability(game: Game, seat_index: int, count: int, face: int) -> float:
++    """How likely ``count x face`` is true as seen from ``seat_index``: its own dice are known, the rest are random."""
++    me = game.seats[seat_index]
++    unseen = game.total_dice() - len(me.dice)
++    p = 2 / 6 if (game.wild_ones and face != 1) else 1 / 6
++    return binomial_at_least(unseen, p, count - _own_matching(game, me.dice, face))
++
++
++def ai_decide(game: Game, seat_index: int) -> Tuple[Any, ...]:
++    """Return ``("call",)`` or ``("bid", count, face)``. Always a legal move, drawn only from what the seat can see."""
++    seat, rng = game.seats[seat_index], game.rng
++    style = _STYLE[seat.style]
++    if game.has_bid:
++        raises = game.legal_raises()
++        threshold = min(0.9, max(0.05, style["call_below"] + rng.gauss(0.0, CALL_NOISE)))
++        if not raises or bid_probability(game, seat_index, game.bid_count, game.bid_face) < threshold:
++            return ("call",)
++        rated = [(c, f, bid_probability(game, seat_index, c, f)) for c, f in raises]
++        if rng.random() < style["bluff"]:
++            for c, f, p in rated:
++                if BLUFF_FLOOR <= p < style["raise_at"]:
++                    return ("bid", c, f)
++        for c, f, p in rated:
++            if p >= style["raise_at"]:
++                return ("bid", c, f)
++        best = max(rated, key=lambda r: (r[2], -r[0], -r[1]))     # nothing is safe: take the likeliest
++        return ("bid", best[0], best[1])
++    # Opening bid: the face this seat holds most of, plus its share of what the others probably hold.
++    unseen = game.total_dice() - len(seat.dice)
++    if rng.random() < style["bluff"]:
++        face = rng.choice(FACES)
++    else:
++        face = max(FACES, key=lambda f: (_own_matching(game, seat.dice, f), f))
++    p = 2 / 6 if (game.wild_ones and face != 1) else 1 / 6
++    count = _own_matching(game, seat.dice, face) + int(unseen * p * 0.6)
++    return ("bid", max(1, min(count, game.total_dice())), face)
++
++
++__all__ = ["Game", "Seat", "RuleError", "new_game", "legal_raise", "ai_decide", "bid_probability",
++           "binomial_at_least", "FACES", "DICE_EACH", "HUMAN_ID", "MIN_OPPONENTS", "MAX_OPPONENTS", "STYLES"]
+diff --git a/modules/liars_dice_api.py b/modules/liars_dice_api.py
+new file mode 100644
+index 00000000..46f2fd80
+--- /dev/null
++++ b/modules/liars_dice_api.py
+@@ -0,0 +1,172 @@
++"""Liar's Dice on the Reach host: one game per signed-in person, kept on the host so it survives a restart.
++
++    GET    /api/minigames/liarsdice          the game in progress (or null)
++    POST   /api/minigames/liarsdice/start    {opponents: 1-3, wild_ones: bool, replace: bool}
++    POST   /api/minigames/liarsdice/bid      {count, face, expected_move}
++    POST   /api/minigames/liarsdice/call     {expected_move}
++    POST   /api/minigames/liarsdice/next     {expected_move}      after a round is revealed
++    DELETE /api/minigames/liarsdice          leave the table (forgets the game)
++
++The person is whoever the verified token says (never a client-supplied name). All dice stay on the host; every reply
++carries ``Game.view()`` plus the ``events`` the move caused, in order, so the table can play them back at human speed.
++``expected_move`` is the ``move`` number the page last saw: if the table has moved on (a double click, a second tab)
++the request is refused with 409 and the current table, instead of acting on a state the person did not see.
++The game is rules-checked by modules/liars_dice.py; this file only does who, saving and the wire format.
++"""
++from __future__ import annotations
++
++import asyncio
++import json
++import logging
++from pathlib import Path
++from typing import Any, Dict, List, Optional
++
++from fastapi import APIRouter, Depends, HTTPException, Request
++
++from .liars_dice import Game, RuleError, new_game
++from .route_security import current_identity
++from .studio_progress import StudioProgressStore, _owner
++
++log = logging.getLogger("pubcast.liarsdice")
++
++MAX_BODY = 2048
++
++
++def create_liars_dice_router(data_dir: Path) -> APIRouter:
++    store = StudioProgressStore(Path(data_dir), folder="liars_dice")
++    router = APIRouter(prefix="/api/minigames/liarsdice", tags=["bella-faux-pas"])
++    router.store = store  # type: ignore[attr-defined]
++    locks: Dict[str, asyncio.Lock] = {}
++
++    def lock_for(owner: str) -> asyncio.Lock:
++        lock = locks.get(owner)
++        if lock is None:
++            lock = locks[owner] = asyncio.Lock()
++        return lock
++
++    def load(owner: str) -> Optional[Game]:
++        record = store.get(owner)
++        saved = ((record or {}).get("progress") or {}).get("game")
++        if saved is None:
++            return None
++        try:
++            return Game.from_record(saved)
++        except ValueError as exc:
++            # a damaged save must never lock the person out of the table: treat it as no game and say why in the log
++            log.warning("ignoring unreadable Liar's Dice save for %s: %s", owner, exc)
++            return None
++
++    def save(owner: str, game: Optional[Game]) -> None:
++        store.put(owner, {"game": game.to_record() if game else None})
++
++    async def read_body(request: Request) -> Dict[str, Any]:
++        raw = await request.body()
++        if len(raw) > MAX_BODY:
++            raise HTTPException(413, "That request is too large.")
++        try:
++            body = json.loads(raw or b"{}")
++        except ValueError:
++            raise HTTPException(400, "The request must be JSON.") from None
++        if not isinstance(body, dict):
++            raise HTTPException(400, "The request must be a JSON object.")
++        return body
++
++    def reply(game: Optional[Game], events: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
++        return {"ok": True, "game": game.view() if game else None, "events": events or []}
++
++    def need_game(owner: str) -> Game:
++        game = load(owner)
++        if game is None:
++            raise HTTPException(404, "There is no game in progress. Start one first.")
++        return game
++
++    def check_move(game: Game, body: Dict[str, Any]) -> None:
++        expected = body.get("expected_move")
++        if isinstance(expected, bool) or not isinstance(expected, int):
++            raise HTTPException(400, "expected_move must be the move number you last saw.")
++        if expected != game.move:
++            raise HTTPException(409, {"message": "The table has moved on since you last looked.", "game": game.view()})
++
++    def refuse(exc: RuleError) -> HTTPException:
++        return HTTPException(400, str(exc))
++
++    @router.get("")
++    async def current(identity: Dict[str, Any] = Depends(current_identity)):
++        owner = _owner(identity)
++        async with lock_for(owner):
++            return reply(load(owner))
++
++    @router.post("/start")
++    async def start(request: Request, identity: Dict[str, Any] = Depends(current_identity)):
++        body = await read_body(request)
++        replace = body.get("replace", False)
++        if not isinstance(replace, bool):
++            raise HTTPException(400, "replace must be true or false.")
++        owner = _owner(identity)
++        async with lock_for(owner):
++            existing = load(owner)
++            if existing is not None and existing.phase != "over" and not replace:
++                raise HTTPException(409, {"message": "A game is already in progress. Starting another would end it.",
++                                          "game": existing.view()})
++            try:
++                game = new_game(body.get("opponents"), body.get("wild_ones", False))
++            except RuleError as exc:
++                raise refuse(exc) from None
++            save(owner, game)
++            return reply(game, [{"type": "round", "round": 1, "first": game.seats[game.turn].id}])
++
++    @router.post("/bid")
++    async def bid(request: Request, identity: Dict[str, Any] = Depends(current_identity)):
++        body = await read_body(request)
++        owner = _owner(identity)
++        async with lock_for(owner):
++            game = need_game(owner)
++            check_move(game, body)
++            try:
++                events = game.bid(game.seek_human(), body.get("count"), body.get("face"))
++                events += game.advance_ai()
++            except RuleError as exc:
++                raise refuse(exc) from None
++            save(owner, game)
++            return reply(game, events)
++
++    @router.post("/call")
++    async def call(request: Request, identity: Dict[str, Any] = Depends(current_identity)):
++        body = await read_body(request)
++        owner = _owner(identity)
++        async with lock_for(owner):
++            game = need_game(owner)
++            check_move(game, body)
++            try:
++                events = game.call(game.seek_human())
++            except RuleError as exc:
++                raise refuse(exc) from None
++            save(owner, game)
++            return reply(game, events)
++
++    @router.post("/next")
++    async def next_round(request: Request, identity: Dict[str, Any] = Depends(current_identity)):
++        body = await read_body(request)
++        owner = _owner(identity)
++        async with lock_for(owner):
++            game = need_game(owner)
++            check_move(game, body)
++            try:
++                events = game.next_round()
++                events += game.advance_ai()
++            except RuleError as exc:
++                raise refuse(exc) from None
++            save(owner, game)
++            return reply(game, events)
++
++    @router.delete("")
++    async def leave(identity: Dict[str, Any] = Depends(current_identity)):
++        owner = _owner(identity)
++        async with lock_for(owner):
++            save(owner, None)
++            return reply(None)
++
++    return router
++
++
++__all__ = ["create_liars_dice_router"]
+diff --git a/static/world/world.json b/static/world/world.json
+index da54c2dd..2b9bc956 100644
+--- a/static/world/world.json
++++ b/static/world/world.json
+@@ -15595,6 +15595,22 @@
+       }
+      ],
+      "hotspots": [
++      {
++       "id": "booth-table-dice",
++       "label": "Booth table: Liar's Dice",
++       "at": [
++        240,
++        585
++       ],
++       "r": 45,
++       "status": "proposed",
++       "note": "MY PROPOSAL, not yours: Josie asked for Liar's Dice at the bar and to click the table to play. I put the spot on the table of the nearest striped booth; the exact table is my reading of the picture, tell me if she meant another.",
++       "action": {
++        "type": "custom",
++        "event": "Sit down to a game of Liar's Dice against one to three opponents.",
++        "minigame": "liarsdice"
++       }
++      },
+       {
+        "id": "booth-sit",
+        "label": "Sit (booth)",
+diff --git a/static/world_walk.html b/static/world_walk.html
+index 5ece6914..2f3f566b 100644
+--- a/static/world_walk.html
++++ b/static/world_walk.html
+@@ -218,6 +218,7 @@ textarea { width: 100%; height: 90px; background: var(--bg); color: var(--ink);
+ <script type="importmap">{"imports":{"three":"/static/vendor/three-0.160.0/build/three.module.js","three/addons/":"/static/vendor/three-0.160.0/examples/jsm/"}}</script>
+ <script type="module" src="/static/world_walk_glb.js"></script>
+ <script src="/static/world_walk_live.js"></script>
++<script src="/static/world_walk_liarsdice.js"></script>
+ <script src="/static/production_notes.js"></script>
+ <script src="/static/2i_studio_bridge.js"></script>
+ <script src="/static/keymap.js"></script>
+@@ -935,7 +936,7 @@ function nearestWalkable(v, p, maxR) {
+ const atStation = () => !!(window.PubCastKeymap && window.PubCastKeymap.isOpen && window.PubCastKeymap.isOpen());
+ /* The host can also take the avatar (possession) or put this person in the disciplinary waiting room (timeout): then their own keys and clicks do not walk either. */
+ S.host = { possessed: false, until: 0, timeout: null, banned: false };
+-const inputLocked = () => atStation() || S.host.possessed || !!S.host.timeout || S.host.banned;
++const inputLocked = () => atStation() || S.host.possessed || !!S.host.timeout || S.host.banned || !!(window.PubCastLiarsDice && window.PubCastLiarsDice.isOpen());
+ function setTarget(pt, byHost) {
+   if (pt && !byHost && inputLocked()) return;
+   S.stall = null;
+@@ -1050,9 +1051,12 @@ function showHotspotBubble(h) {
+   for (const n of stuck) btns.push(makeButton("Read note: " + n.subject, () => { hideBubble(); window.PubCastNotes.openNote(n.id, true); }));
+   if (a.type === "view") btns.push(makeButton(a.view==="typewriter_sitting"?"Sit and write":"Open " + h.label, () => { hideBubble(); openCloseup(a.view); }));
+   if (live) btns.push(makeButton(a.type === "view" ? "Use it here" : "Use", () => runLive(h, live, null)));
++  // a table with a game behind it (Liar's Dice): the game is the host's, the walker only opens the table
++  const game = a.minigame === "liarsdice" && window.PubCastLiarsDice ? window.PubCastLiarsDice : null;
++  if (game) btns.push(makeButton("Play Liar\u2019s Dice", () => { hideBubble(); HELD.clear(); S.target = null; S.path = []; game.open(); }));
+   btns.push(makeButton("Close", () => hideBubble()));
+   const text = a.type === "view" ? (a.event || "Opens a close-up view.") : (a.event || a.animation || a.program || "");
+-  showBubble(h.label, (a.type === "view" || live ? "" : "Not wired yet. It would: ") + text, btns, h.at);
++  showBubble(h.label, (a.type === "view" || live || game ? "" : "Not wired yet. It would: ") + text, btns, h.at);
+ }
+ /* Run a hotspot's action on the PubCast host and show the answer, with any follow-up choices it offers. */
+ async function runLive(h, action, data) {
+diff --git a/static/world_walk_liarsdice.js b/static/world_walk_liarsdice.js
+new file mode 100644
+index 00000000..ffb2c036
+--- /dev/null
++++ b/static/world_walk_liarsdice.js
+@@ -0,0 +1,483 @@
++/* Liar's Dice at the Vortex Bar booth: the table you play on when you click the booth in the walker.
++ *
++ * All rules, dice and opponents live on the PubCast host (modules/liars_dice.py, served by modules/liars_dice_api.py).
++ * This file only shows the table the host sends and sends back what you choose. It never rolls a die or decides a
++ * result, and it never holds anyone else's dice: the host does not send them until a call turns every cup over.
++ *
++ *   window.PubCastLiarsDice.open()   show the table (resumes a saved game, or offers a new one)
++ *   window.PubCastLiarsDice.close()  hide it; the game stays saved on the host
++ *   window.PubCastLiarsDice.isOpen()
++ *
++ * The walker stops taking walking keys while it is open (world_walk.html inputLocked). Esc closes it.
++ * Sound is made in the browser (Web Audio, no files). The dice are drawn with CSS: no art assets are needed.
++ */
++(function (global) {
++  "use strict";
++
++  const API = "/api/minigames/liarsdice";
++  const MUTE_KEY = "pubcast.liarsdice.muted";
++  const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
++  const FACE_NAMES = ["", "ones", "twos", "threes", "fours", "fives", "sixes"];
++  const STEP_MS = 850, STEP_MS_REDUCED = 300;
++
++  const reduced = () => !!(global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)").matches);
++  const sleep = ms => new Promise(r => setTimeout(r, ms));
++
++  const S = {
++    open: false, root: null, body: null, status: null, errorBox: null, game: null, busy: false, loadFailed: false,
++    pick: null, setup: { opponents: 2, wild: false }, confirmReset: false, ticker: null, token: 0,
++    muted: false, ctx: null, returnFocus: null, titleEl: null,
++  };
++  try { S.muted = global.localStorage.getItem(MUTE_KEY) === "1"; } catch (e) { /* storage may be unavailable */ }
++
++  /* ---------------------------------------------------------------- sound */
++  function audio() {
++    if (S.ctx) return S.ctx;
++    const AC = global.AudioContext || global.webkitAudioContext;
++    if (!AC) return null;
++    try { S.ctx = new AC(); } catch (e) { S.ctx = null; }
++    return S.ctx;
++  }
++  function withAudio(fn) {
++    if (S.muted) return;
++    const ctx = audio(); if (!ctx) return;
++    try { if (ctx.state === "suspended") ctx.resume(); fn(ctx, ctx.currentTime); } catch (e) { /* sound is optional */ }
++  }
++  function noiseBuffer(ctx, seconds) {
++    const n = Math.floor(ctx.sampleRate * seconds), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
++    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
++    return buf;
++  }
++  /* A jangly rattle: a run of short, bright knocks at uneven gaps. */
++  function soundRattle() {
++    withAudio((ctx, t0) => {
++      const buf = noiseBuffer(ctx, 0.05), knocks = 9 + Math.floor(Math.random() * 5);
++      let t = t0;
++      for (let i = 0; i < knocks; i++) {
++        const src = ctx.createBufferSource(), band = ctx.createBiquadFilter(), gain = ctx.createGain();
++        src.buffer = buf; band.type = "bandpass"; band.frequency.value = 1800 + Math.random() * 3200; band.Q.value = 3.5;
++        gain.gain.setValueAtTime(0.0001, t);
++        gain.gain.exponentialRampToValueAtTime(0.22 + Math.random() * 0.18, t + 0.004);
++        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
++        src.connect(band); band.connect(gain); gain.connect(ctx.destination); src.start(t);
++        t += 0.035 + Math.random() * 0.055;
++      }
++    });
++  }
++  function tone(ctx, t, from, to, len, type, vol) {
++    const o = ctx.createOscillator(), g = ctx.createGain();
++    o.type = type; o.frequency.setValueAtTime(from, t); o.frequency.exponentialRampToValueAtTime(to, t + len);
++    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
++    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + len + 0.02);
++  }
++  const soundThud = () => withAudio((c, t) => tone(c, t, 150, 45, 0.22, "sine", 0.5));              // a cup set down
++  const soundBid = () => withAudio((c, t) => tone(c, t, 640, 640, 0.07, "triangle", 0.18));
++  const soundLoss = () => withAudio((c, t) => { tone(c, t, 330, 165, 0.35, "sawtooth", 0.16); });
++  const soundWin = () => withAudio((c, t) => { [523, 659, 784, 1046].forEach((f, i) => tone(c, t + i * 0.11, f, f, 0.2, "triangle", 0.2)); });
++
++  /* ------------------------------------------------------------- the host */
++  async function http(method, path, body) {
++    let res;
++    try {
++      res = await fetch(API + path, { method, cache: "no-store", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
++    } catch (e) {
++      return { ok: false, status: 0, data: { detail: "Can't reach the PubCast host. Your game is kept there; try again in a moment." } };
++    }
++    let data = null;
++    try { data = await res.json(); } catch (e) { /* not JSON */ }
++    if (res.ok && data && data.ok) return { ok: true, status: res.status, data };
++    let detail = data && data.detail;
++    if (res.status === 401) detail = "You need to be signed in to play. Sign in, then come back to the table.";
++    return { ok: false, status: res.status, data: { detail: detail || "The host answered with an error (" + res.status + ")." } };
++  }
++  const detailText = d => (d && typeof d.detail === "object" && d.detail) ? d.detail.message || "That did not work." : String((d && d.detail) || "That did not work.");
++
++  /* --------------------------------------------------------------- helpers */
++  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
++  function button(text, fn, cls, opts) {
++    const b = el("button", cls, text); b.type = "button";
++    if (opts && opts.disabled) b.disabled = true;
++    if (opts && opts.label) b.setAttribute("aria-label", opts.label);
++    if (opts && opts.pressed !== undefined) b.setAttribute("aria-pressed", String(!!opts.pressed));
++    if (opts && opts.focus) b.dataset.autofocus = "1";
++    if (opts && opts.key) b.dataset.key = opts.key;
++    b.addEventListener("click", fn); return b;
++  }
++  function die(face, cls) {
++    const d = el("span", "ld-die" + (cls ? " " + cls : ""));
++    d.setAttribute("role", "img"); d.setAttribute("aria-label", "die showing " + face);
++    const on = new Set(PIPS[face] || []);
++    for (let i = 0; i < 9; i++) d.appendChild(el("i", on.has(i) ? "pip" : "gap"));
++    return d;
++  }
++  const seatOf = (g, id) => (g.seats || []).find(s => s.id === id);
++  const nameOf = (g, id) => { const s = seatOf(g, id); return !s ? id : s.human ? "You" : s.name; };
++  const verb = (g, id, you, other) => (seatOf(g, id) && seatOf(g, id).human ? you : other);
++  const bidText = (count, face) => count + " × " + face + (count === 1 ? " (one " + FACE_NAMES[face].replace(/s$/, "") + ")" : " (" + FACE_NAMES[face] + ")");
++
++  /* The raise rule, as the host enforces it: more dice of any face, or the same number on a higher face. */
++  function isRaise(prev, count, face, total) {
++    if (!Number.isInteger(count) || !Number.isInteger(face) || face < 1 || face > 6 || count < 1 || count > total) return false;
++    if (!prev) return true;
++    return count > prev.count || (count === prev.count && face > prev.face);
++  }
++  function lowestRaise(prev, total) {
++    if (!prev) return { count: 1, face: 1 };
++    if (prev.face < 6 && prev.count <= total) return { count: prev.count, face: prev.face + 1 };
++    return prev.count + 1 <= total ? { count: prev.count + 1, face: 1 } : null;
++  }
++
++  /* ----------------------------------------------------------------- style */
++  const CSS = `
++#ldice{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(6,6,12,.72);padding:12px;font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
++#ldice[hidden]{display:none}
++#ldice .ld-card{background:var(--panel,#1b1d27);color:var(--ink,#eceef6);border:1px solid var(--accent,#ffd36b);border-radius:16px;width:min(720px,100%);max-height:100%;overflow:auto;box-shadow:0 18px 60px rgba(0,0,0,.6);display:flex;flex-direction:column}
++#ldice header{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line,#343748)}
++#ldice header h2{margin:0;font-size:17px;flex:1}
++#ldice .ld-main{padding:14px 16px;display:flex;flex-direction:column;gap:14px}
++#ldice .ld-status{min-height:1.4em;color:var(--dim,#a3a8bd)}
++#ldice .ld-error{color:var(--low,#ff8a7a);border:1px solid var(--low,#ff8a7a);border-radius:8px;padding:8px 10px}
++#ldice .ld-seats{display:flex;gap:8px;flex-wrap:wrap}
++#ldice .ld-seat{flex:1 1 130px;border:1px solid var(--line,#343748);border-radius:12px;padding:8px 10px;min-width:120px}
++#ldice .ld-seat.turn{border-color:var(--accent,#ffd36b);box-shadow:0 0 0 1px var(--accent,#ffd36b) inset}
++#ldice .ld-seat.out{opacity:.5}
++#ldice .ld-seat .nm{font-weight:600}
++#ldice .ld-cups{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;min-height:14px}
++#ldice .ld-cup{width:12px;height:14px;border-radius:2px 2px 5px 5px;background:var(--accent,#ffd36b);opacity:.85}
++#ldice .ld-table{border:1px solid var(--line,#343748);border-radius:14px;padding:12px;background:var(--bg,#12131a);display:flex;flex-direction:column;gap:10px;align-items:center}
++#ldice .ld-bid{font-size:18px;font-weight:700;text-align:center}
++#ldice .ld-hand{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
++#ldice .ld-hands{display:flex;flex-direction:column;gap:8px;width:100%}
++#ldice .ld-hands .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
++#ldice .ld-hands .row .who{min-width:90px;font-weight:600}
++#ldice .ld-die{display:inline-grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);width:44px;height:44px;padding:5px;gap:2px;border-radius:9px;background:#f6f3ea;color:#1c1e2a;border:1px solid #bdb8a8;box-shadow:0 2px 4px rgba(0,0,0,.35)}
++#ldice .ld-die.small{width:30px;height:30px;padding:3px;border-radius:6px;gap:1px}
++#ldice .ld-die i{display:block;border-radius:50%}
++#ldice .ld-die i.pip{background:#1c1e2a}
++#ldice .ld-die.hit{outline:3px solid var(--good,#6be5a0);outline-offset:1px}
++#ldice .ld-die.wild{outline:3px dashed var(--accent,#ffd36b);outline-offset:1px}
++#ldice .ld-die.miss{opacity:.45}
++#ldice .ld-die.tumble{animation:ldtumble .7s cubic-bezier(.2,.7,.3,1) both}
++@keyframes ldtumble{0%{transform:translateY(-12px) rotate(-300deg) scale(.75);opacity:0}60%{transform:translateY(2px) rotate(20deg) scale(1.05);opacity:1}100%{transform:none;opacity:1}}
++#ldice .ld-controls{display:flex;flex-direction:column;gap:10px;width:100%;align-items:center}
++#ldice .ld-pick{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center}
++#ldice .ld-count{min-width:2.4em;text-align:center;font-size:20px;font-weight:700}
++#ldice .ld-face{padding:2px;min-height:0;border-radius:10px}
++#ldice .ld-face[aria-pressed="true"]{border-color:var(--accent,#ffd36b);box-shadow:0 0 0 2px var(--accent,#ffd36b)}
++#ldice .ld-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
++#ldice .ld-actions button{padding:8px 18px;font-weight:600}
++#ldice .ld-call{border-color:var(--low,#ff8a7a)}
++#ldice .ld-hint{color:var(--dim,#a3a8bd);font-size:13px;text-align:center}
++#ldice .ld-setup{display:flex;flex-direction:column;gap:12px}
++#ldice .ld-setup fieldset{border:1px solid var(--line,#343748);border-radius:10px;padding:8px 12px}
++#ldice .ld-setup label{margin-right:14px}
++#ldice .ld-rules{color:var(--dim,#a3a8bd);font-size:13px;margin:0;padding-left:18px}
++#ldice .ld-result{font-size:16px;font-weight:600;text-align:center}
++@media (prefers-reduced-motion:reduce){#ldice .ld-die.tumble{animation:none}}
++`;
++  function injectStyle() {
++    if (document.getElementById("ldice-style")) return;
++    const s = document.createElement("style"); s.id = "ldice-style"; s.textContent = CSS; document.head.appendChild(s);
++  }
++
++  /* ---------------------------------------------------------------- shell */
++  function build() {
++    injectStyle();
++    const root = el("div"); root.id = "ldice"; root.hidden = true;
++    const card = el("div", "ld-card"); card.setAttribute("role", "dialog"); card.setAttribute("aria-modal", "true"); card.setAttribute("aria-labelledby", "ldice-title");
++    const head = el("header"); const title = el("h2", null, "Liar’s Dice"); title.id = "ldice-title";
++    const mute = button(S.muted ? "Sound off" : "Sound on", () => {
++      S.muted = !S.muted; mute.textContent = S.muted ? "Sound off" : "Sound on"; mute.setAttribute("aria-pressed", String(!S.muted));
++      try { global.localStorage.setItem(MUTE_KEY, S.muted ? "1" : "0"); } catch (e) { /* ignore */ }
++    }, "ld-mute", { pressed: !S.muted });
++    const leave = button("Leave table", () => close(), "ld-leave", { label: "Leave the table (your game is kept)" });
++    head.append(title, mute, leave);
++    const main = el("div", "ld-main");
++    const status = el("div", "ld-status"); status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
++    const err = el("div", "ld-error"); err.setAttribute("role", "alert"); err.hidden = true;
++    const body = el("div", "ld-body");
++    main.append(status, err, body);
++    card.append(head, main); root.appendChild(card); document.body.appendChild(root);
++    S.root = root; S.body = body; S.status = status; S.errorBox = err; S.titleEl = title;
++    root.addEventListener("pointerdown", e => e.stopPropagation());       // clicks here never reach the walker underneath
++    root.addEventListener("click", e => { if (e.target === root) close(); });
++  }
++  const setStatus = t => { if (S.status) S.status.textContent = t || ""; };
++  function setError(t) { S.errorBox.hidden = !t; S.errorBox.textContent = t || ""; }
++  function focusFirst() {
++    if (S.focusKey) {
++      const k = S.body.querySelector('[data-key="' + S.focusKey + '"]:not(:disabled)'); S.focusKey = null;
++      if (k) { k.focus({ preventScroll: true }); return; }
++    }
++    const t = S.body.querySelector("[data-autofocus]:not(:disabled)") || S.body.querySelector("button:not(:disabled), input:not(:disabled)");
++    if (t) t.focus({ preventScroll: true });
++  }
++
++  /* --------------------------------------------------------------- screens */
++  function renderLoading(text) { S.body.textContent = ""; S.body.appendChild(el("p", "ld-hint", text)); }
++
++  function renderOffline(message) {
++    S.body.textContent = ""; setStatus("");
++    setError(message);
++    const row = el("div", "ld-actions");
++    row.append(button("Try again", () => load(), null, { focus: true }), button("Leave table", () => close()));
++    S.body.appendChild(row); focusFirst();
++  }
++
++  function renderSetup() {
++    S.body.textContent = ""; S.confirmReset = false;
++    const box = el("div", "ld-setup");
++    box.appendChild(el("p", null, "You sit down with up to three opponents. Everyone starts with five dice under a cup."));
++    const rules = el("ul", "ld-rules");
++    [
++      "On your turn, bid how many dice of one face are on the whole table, counting everyone’s hidden dice.",
++      "Each bid must beat the one before: more dice of any face, or the same number on a higher face.",
++      "Or call “Liar!”. Every cup is lifted. If the bid was met or beaten, the caller loses a die; if not, the bidder does.",
++      "Whoever loses a die opens the next round. Out of dice means out of the game. Last one standing wins.",
++    ].forEach(t => rules.appendChild(el("li", null, t)));
++    box.appendChild(rules);
++
++    const fs = el("fieldset"); const lg = el("legend", null, "Opponents"); fs.appendChild(lg);
++    [1, 2, 3].forEach(n => {
++      const id = "ld-opp-" + n, lab = el("label"), r = el("input"); r.type = "radio"; r.name = "ld-opp"; r.value = String(n); r.id = id;
++      r.checked = S.setup.opponents === n; if (r.checked) r.dataset.autofocus = "1";
++      r.addEventListener("change", () => { S.setup.opponents = n; });
++      lab.append(r, document.createTextNode(" " + n)); fs.appendChild(lab);
++    });
++    box.appendChild(fs);
++    const wl = el("label"), w = el("input"); w.type = "checkbox"; w.checked = S.setup.wild;
++    w.addEventListener("change", () => { S.setup.wild = w.checked; });
++    wl.append(w, document.createTextNode(" Ones are wild (they count as any face, except when someone bids on ones)"));
++    box.appendChild(wl);
++    box.appendChild(button("Sit down and roll", () => startGame(false), "ld-start"));
++    S.body.appendChild(box); setStatus(""); focusFirst();
++  }
++
++  function seatStrip(g) {
++    const strip = el("div", "ld-seats");
++    g.seats.forEach(s => {
++      const c = el("div", "ld-seat" + (g.turn === s.id ? " turn" : "") + (s.out ? " out" : ""));
++      c.appendChild(el("div", "nm", s.human ? "You" : s.name));
++      const cups = el("div", "ld-cups");
++      for (let i = 0; i < s.remaining; i++) cups.appendChild(el("span", "ld-cup"));
++      cups.setAttribute("role", "img"); cups.setAttribute("aria-label", s.remaining + (s.remaining === 1 ? " die left" : " dice left"));
++      c.append(cups, el("div", "ld-hint", s.out ? "Out" : s.remaining + (s.remaining === 1 ? " die" : " dice") + (g.turn === s.id ? " • bidding" : "")));
++      strip.appendChild(c);
++    });
++    return strip;
++  }
++
++  function renderTable(g, opts) {
++    opts = opts || {};
++    S.body.textContent = ""; S.game = g;
++    if (g.phase === "over") S.confirmReset = false;
++    S.body.appendChild(seatStrip(g));
++    const table = el("div", "ld-table");
++    if (opts.ticker !== undefined) {
++      const t = el("div", "ld-bid", opts.ticker); t.setAttribute("aria-hidden", "true"); table.appendChild(t);
++    } else if (g.phase === "bidding") {
++      table.appendChild(el("div", "ld-bid", g.bid ? nameOf(g, g.bid.by) + (g.bid.by === g.you.id ? " bid " : " bids ") + bidText(g.bid.count, g.bid.face) : "Round " + g.round + ": no bid yet"));
++    }
++    if (g.phase === "bidding" && g.you.dice.length) {
++      table.appendChild(el("div", "ld-hint", "Your dice (only you can see them)"));
++      const hand = el("div", "ld-hand");
++      g.you.dice.forEach(f => hand.appendChild(die(f, opts.tumble && !reduced() ? "tumble" : "")));
++      table.appendChild(hand);
++    }
++    if (g.phase !== "bidding" && g.reveal && !opts.hideReveal) table.appendChild(revealBlock(g));
++    if (opts.ticker === undefined) table.appendChild(controls(g));
++    S.body.appendChild(table);
++    if (opts.ticker === undefined && g.phase !== "over") S.body.appendChild(forgetRow());
++    focusFirst();
++  }
++
++  /* Walking away keeps the game. Throwing it away takes two clicks. */
++  function forgetRow() {
++    const row = el("div", "ld-actions");
++    if (!S.confirmReset) row.appendChild(button("Forget this game", () => { S.confirmReset = true; S.focusKey = "forget-no"; renderTable(S.game); }, "ld-forget", { key: "forget" }));
++    else {
++      row.append(el("span", "ld-hint", "Throw this game away?"),
++        button("Yes, forget it", () => forgetGame(), "ld-forget-yes", { key: "forget-yes" }),
++        button("Keep playing", () => { S.confirmReset = false; S.focusKey = "forget"; renderTable(S.game); }, null, { key: "forget-no" }));
++    }
++    return row;
++  }
++  function forgetGame() {
++    return act("DELETE", "", null, async () => { S.game = null; S.pick = null; S.confirmReset = false; setStatus("Game forgotten."); renderSetup(); });
++  }
++
++  function revealBlock(g) {
++    const r = g.reveal, wrap = el("div", "ld-hands");
++    const bidderWild = g.wild_ones && r.face !== 1;
++    wrap.appendChild(el("div", "ld-bid", nameOf(g, r.caller) + verb(g, r.caller, " call ", " calls ") + (verb(g, r.bidder, "your", nameOf(g, r.bidder) + "’s")) + " bid of " + bidText(r.count, r.face)));
++    Object.keys(r.hands).forEach(id => {
++      const row = el("div", "row"); row.appendChild(el("span", "who", nameOf(g, id)));
++      const hand = el("div", "ld-hand");
++      r.hands[id].forEach(f => {
++        const isHit = f === r.face, isWild = bidderWild && f === 1;
++        hand.appendChild(die(f, "small " + (isHit ? "hit" : isWild ? "wild" : "miss") + (reduced() ? "" : " tumble")));
++      });
++      row.appendChild(hand); wrap.appendChild(row);
++    });
++    const verdict = r.bid_true
++      ? "There were " + r.matching + ". The bid was good."
++      : "There were only " + r.matching + ". The bid was a lie.";
++    wrap.appendChild(el("div", "ld-result", verdict + " " + nameOf(g, r.loser) + verb(g, r.loser, " lose a die.", " loses a die.")));
++    if (g.phase === "over") wrap.appendChild(el("div", "ld-result", endText(g)));
++    return wrap;
++  }
++  function endText(g) {
++    if (g.winner === g.you.id) return "You win. Everyone else is out of dice.";
++    if (g.winner) return "You are out of dice. " + nameOf(g, g.winner) + " wins.";
++    return "You are out of dice. The game is over.";
++  }
++
++  function controls(g) {
++    const box = el("div", "ld-controls");
++    if (g.phase === "reveal") {
++      const a = el("div", "ld-actions"); a.appendChild(button("Next round", () => nextRound(), null, { focus: true })); box.appendChild(a); return box;
++    }
++    if (g.phase === "over") {
++      const a = el("div", "ld-actions");
++      a.append(button("Play again", () => { S.setup.opponents = Math.max(1, Math.min(3, g.seats.length - 1)); S.setup.wild = !!g.wild_ones; startGame(false); }, null, { focus: true }),
++               button("Set up a new table", () => renderSetup()), button("Leave table", () => close()));
++      box.appendChild(a); return box;
++    }
++    if (g.turn !== g.you.id) { box.appendChild(el("div", "ld-hint", "Waiting for the other players…")); return box; }
++
++    const total = g.total_dice, prev = g.bid;
++    if (!S.pick || S.pick.game !== g.game_id || S.pick.move !== g.move || !isRaise(prev, S.pick.count, S.pick.face, total)) {
++      const low = lowestRaise(prev, total); S.pick = low ? { game: g.game_id, move: g.move, count: low.count, face: low.face } : { game: g.game_id, move: g.move, count: 0, face: 0 };
++    }
++    const pick = S.pick;
++    const redraw = key => { S.focusKey = key; renderTable(g); };
++    if (g.can_raise) {
++      const row = el("div", "ld-pick"); row.setAttribute("role", "group"); row.setAttribute("aria-label", "Your bid");
++      const minus = button("−", () => { pick.count -= 1; redraw("minus"); }, null, { label: "One fewer die", disabled: pick.count <= 1, key: "minus" });
++      const num = el("span", "ld-count", String(pick.count)); num.setAttribute("aria-label", pick.count + " dice");
++      const plus = button("+", () => { pick.count += 1; redraw("plus"); }, null, { label: "One more die", disabled: pick.count >= total, key: "plus" });
++      row.append(minus, num, plus, el("span", null, "×"));
++      for (let f = 1; f <= 6; f++) {
++        const fb = button("", () => { pick.face = f; redraw("face-" + f); }, "ld-face", { pressed: pick.face === f, label: FACE_NAMES[f], key: "face-" + f });
++        fb.appendChild(die(f, "small")); row.appendChild(fb);
++      }
++      box.appendChild(row);
++      const ok = isRaise(prev, pick.count, pick.face, total);
++      box.appendChild(el("div", "ld-hint", prev
++        ? "To beat " + bidText(prev.count, prev.face) + ": more dice of any face, or " + prev.count + " on a higher face. " + total + " dice are in play."
++        : "Open with any bid. " + total + " dice are in play."));
++      const a = el("div", "ld-actions");
++      a.appendChild(button(ok ? "Bid " + bidText(pick.count, pick.face) : "Pick a higher bid", () => placeBid(pick.count, pick.face), "ld-bid-btn", { disabled: !ok, focus: true }));
++      if (g.can_call) a.appendChild(button("Call Liar!", () => callLiar(), "ld-call"));
++      box.appendChild(a);
++    } else {
++      box.appendChild(el("div", "ld-hint", "Nothing can beat that bid. You can only call."));
++      const a = el("div", "ld-actions"); a.appendChild(button("Call Liar!", () => callLiar(), "ld-call", { focus: true })); box.appendChild(a);
++    }
++    return box;
++  }
++
++  /* ---------------------------------------------------------------- actions */
++  async function load() {
++    const mine = ++S.token; setError(""); renderLoading("Looking for your table…");
++    const r = await http("GET", "");
++    if (mine !== S.token || !S.open) return;
++    if (!r.ok) { renderOffline(detailText(r.data)); return; }
++    S.game = r.data.game;
++    if (!S.game) renderSetup(); else { renderTable(S.game); setStatus(statusFor(S.game, true)); }
++  }
++  function statusFor(g, resumed) {
++    if (g.phase === "over") return endText(g);
++    if (g.phase === "reveal") return "Cups up. " + nameOf(g, g.reveal.loser) + verb(g, g.reveal.loser, " lose a die.", " loses a die.");
++    return (resumed ? "Welcome back. " : "") + "Round " + g.round + ". " + (g.turn === g.you.id ? "Your bid." : nameOf(g, g.turn) + " is bidding.");
++  }
++
++  /* One request at a time; a second click while one is in flight is ignored (the host would refuse it as stale anyway). */
++  async function act(method, path, body, afterOk) {
++    if (S.busy) return;
++    S.busy = true; setError("");
++    const mine = ++S.token;
++    const before = S.game;
++    S.body.querySelectorAll("button").forEach(b => { b.disabled = true; });
++    const r = await http(method, path, body);
++    if (mine !== S.token || !S.open) { S.busy = false; return; }
++    if (!r.ok) {
++      S.busy = false;
++      if (r.status === 409 && r.data.detail && typeof r.data.detail === "object" && r.data.detail.game) {
++        S.game = r.data.detail.game; renderTable(S.game); setError(detailText(r.data)); setStatus(statusFor(S.game)); return;
++      }
++      setError(detailText(r.data));
++      if (before) renderTable(before); else renderSetup();
++      return;
++    }
++    try { await afterOk(r.data); } finally { S.busy = false; }
++  }
++
++  const startGame = replace => act("POST", "/start", { opponents: S.setup.opponents, wild_ones: S.setup.wild, replace: !!replace }, async d => {
++    S.game = d.game; S.pick = null; soundRattle();
++    renderTable(d.game, { tumble: true }); setStatus(statusFor(d.game));
++  });
++  const placeBid = (count, face) => act("POST", "/bid", { count, face, expected_move: S.game.move }, d => playback(d));
++  const callLiar = () => act("POST", "/call", { expected_move: S.game.move }, d => playback(d));
++  const nextRound = () => act("POST", "/next", { expected_move: S.game.move }, d => playback(d));
++
++  /* Replay what happened, one beat at a time, then show the table the host ended on. */
++  async function playback(d) {
++    const g = d.game, mine = S.token, step = reduced() ? STEP_MS_REDUCED : STEP_MS;
++    let tumble = false;
++    for (const ev of d.events) {
++      if (mine !== S.token || !S.open) return;
++      let text = null;
++      if (ev.type === "bid") { text = nameOf(g, ev.seat) + verb(g, ev.seat, " bid ", " bids ") + bidText(ev.count, ev.face); soundBid(); }
++      else if (ev.type === "call") { text = nameOf(g, ev.seat) + verb(g, ev.seat, " call", " calls") + " Liar on " + verb(g, ev.against, "you", nameOf(g, ev.against)) + "!"; soundThud(); }
++      else if (ev.type === "reveal") { text = "Cups up…"; soundRattle(); }
++      else if (ev.type === "lost_die") { text = nameOf(g, ev.seat) + verb(g, ev.seat, " lose a die.", " loses a die."); soundLoss(); }
++      else if (ev.type === "out") { text = nameOf(g, ev.seat) + verb(g, ev.seat, " are out.", " is out."); }
++      else if (ev.type === "over") { text = endText(g); if (ev.human_won) soundWin(); }
++      else if (ev.type === "round") { text = "Round " + ev.round + ". " + nameOf(g, ev.first) + verb(g, ev.first, " open.", " opens."); soundRattle(); tumble = true; }
++      if (text === null) continue;
++      renderTable(g, { ticker: text, hideReveal: true }); setStatus(text);
++      await sleep(step);
++    }
++    if (mine !== S.token || !S.open) return;
++    S.game = g; renderTable(g, { tumble }); setStatus(statusFor(g));
++  }
++
++  /* ------------------------------------------------------------ open / close */
++  function trapKeys(e) {
++    if (!S.open) return;
++    if (e.type === "keydown") {
++      if (e.key === "Escape") { e.preventDefault(); close(); e.stopPropagation(); return; }
++      if (e.key === "Tab") {
++        const items = Array.from(S.root.querySelectorAll("button:not(:disabled), input:not(:disabled)")).filter(n => n.offsetParent !== null);
++        if (!items.length) { e.preventDefault(); } else {
++          const first = items[0], last = items[items.length - 1], a = document.activeElement;
++          if (!S.root.contains(a)) { e.preventDefault(); first.focus(); }
++          else if (e.shiftKey && a === first) { e.preventDefault(); last.focus(); }
++          else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
++        }
++      }
++    }
++    e.stopPropagation();          // walking keys, shortcuts and Esc-to-go-back never see keys typed at the table
++  }
++
++  function open() {
++    if (S.open) return;
++    if (!S.root) build();
++    S.open = true; S.busy = false; S.returnFocus = document.activeElement;
++    S.root.hidden = false;
++    global.addEventListener("keydown", trapKeys, true); global.addEventListener("keyup", trapKeys, true);
++    audio();                                    // opened by a click, so the browser lets sound start
++    load();
++  }
++  function close() {
++    if (!S.open) return;
++    S.open = false; S.token++; S.busy = false;
++    S.root.hidden = true; setError(""); setStatus("");
++    global.removeEventListener("keydown", trapKeys, true); global.removeEventListener("keyup", trapKeys, true);
++    const f = S.returnFocus; S.returnFocus = null;
++    if (f && typeof f.focus === "function" && document.contains(f)) { try { f.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
++  }
++
++  global.PubCastLiarsDice = { open, close, isOpen: () => S.open };
++})(window);
+diff --git a/tests/test_liars_dice_api.py b/tests/test_liars_dice_api.py
+new file mode 100644
+index 00000000..c30878d1
+--- /dev/null
++++ b/tests/test_liars_dice_api.py
+@@ -0,0 +1,221 @@
++"""Liar's Dice routes (modules/liars_dice_api.py): who, saving, stale clicks, hidden dice, a damaged save.
++
++The router is mounted on a real FastAPI app and driven with real bearer tokens, the way the page does it.
++"""
++from __future__ import annotations
++
++import json
++
++import pytest
++from fastapi import FastAPI
++from fastapi.testclient import TestClient
++
++from modules.auth import create_access_token
++from modules.liars_dice import Game
++from modules.liars_dice_api import create_liars_dice_router
++
++URL = "/api/minigames/liarsdice"
++
++
++@pytest.fixture()
++def api(tmp_path):
++    app = FastAPI()
++    router = create_liars_dice_router(tmp_path)
++    app.include_router(router)
++    with TestClient(app) as client:
++        client.data_dir, client.router = tmp_path, router
++        yield client
++
++
++def auth(user):
++    return {"Authorization": "Bearer " + create_access_token({"sub": user, "role": "owner"})}
++
++
++JOSIE = auth("josie")
++
++
++def start(api, headers=JOSIE, **body):
++    return api.post(URL + "/start", headers=headers, json={"opponents": 2, **body})
++
++
++def saved(api, user="josie"):
++    return Game.from_record(api.router.store.get(user)["progress"]["game"])
++
++
++def test_you_need_to_be_signed_in_when_auth_is_enforced(api, monkeypatch):
++    monkeypatch.setenv("PUBCAST_ENFORCE_AUTH", "1")
++    for method, path in [("get", ""), ("post", "/start"), ("post", "/bid"), ("post", "/call"), ("post", "/next"), ("delete", "")]:
++        r = getattr(api, method)(URL + path, **({"json": {}} if method == "post" else {}))
++        assert r.status_code == 401, (method, path, r.text)
++
++
++def test_there_is_no_game_until_you_start_one(api):
++    assert api.get(URL, headers=JOSIE).json() == {"ok": True, "game": None, "events": []}
++    for path in ("/bid", "/call", "/next"):
++        r = api.post(URL + path, headers=JOSIE, json={"expected_move": 0, "count": 1, "face": 1})
++        assert r.status_code == 404 and "Start one first" in r.json()["detail"]
++
++
++def test_starting_gives_you_the_table_with_only_your_own_dice(api):
++    r = start(api)
++    assert r.status_code == 200
++    body = r.json()
++    g = body["game"]
++    assert body["events"][0]["type"] == "round" and g["turn"] == "you" and g["phase"] == "bidding"
++    assert len(g["seats"]) == 3 and [s["remaining"] for s in g["seats"]] == [5, 5, 5] and len(g["you"]["dice"]) == 5
++    wire = json.dumps(body)
++    host = api.router.store.get("josie")["progress"]["game"]
++    for seat in host["seats"][1:]:                                   # no opponent's hand appears anywhere in the reply
++        assert json.dumps(seat["dice"]) not in wire.replace(json.dumps(g["you"]["dice"]), "")
++    assert '"hands"' not in wire and '"style"' not in wire
++    assert "dice" not in {k for s in g["seats"] for k in s}
++    assert api.get(URL, headers=JOSIE).json()["game"] == g          # and it is still there on a fresh request
++
++
++@pytest.mark.parametrize("body", [{}, {"opponents": 0}, {"opponents": 4}, {"opponents": "2"}, {"opponents": True},
++                                  {"opponents": 2, "wild_ones": "yes"}, {"opponents": 2, "replace": "yes"}])
++def test_a_bad_start_is_refused_and_nothing_is_saved(api, body):
++    r = api.post(URL + "/start", headers=JOSIE, json=body)
++    assert r.status_code == 400 and isinstance(r.json()["detail"], str)
++    assert api.get(URL, headers=JOSIE).json()["game"] is None
++
++
++@pytest.mark.parametrize("raw", [b"{nope", b"[1]", b'"x"', b"x" * 5000])
++def test_a_malformed_request_is_refused(api, raw):
++    r = api.post(URL + "/start", headers={**JOSIE, "Content-Type": "application/json"}, content=raw)
++    assert r.status_code in (400, 413)
++
++
++def test_starting_over_a_live_game_needs_you_to_say_so(api):
++    first = start(api).json()["game"]
++    r = start(api)
++    assert r.status_code == 409 and r.json()["detail"]["game"]["game_id"] == first["game_id"]
++    assert api.get(URL, headers=JOSIE).json()["game"]["game_id"] == first["game_id"]      # untouched
++    again = start(api, replace=True)
++    assert again.status_code == 200 and again.json()["game"]["game_id"] != first["game_id"]
++
++
++def test_a_bid_is_played_and_the_opponents_answer(api):
++    g = start(api).json()["game"]
++    r = api.post(URL + "/bid", headers=JOSIE, json={"count": 1, "face": 2, "expected_move": g["move"]})
++    assert r.status_code == 200
++    body = r.json()
++    kinds = [e["type"] for e in body["events"]]
++    assert kinds[0] == "bid" and body["events"][0]["seat"] == "you"
++    assert body["game"]["move"] > g["move"]
++    # it stopped because the human must act, or because a round was called and is waiting to be shown
++    assert body["game"]["turn"] == "you" or body["game"]["phase"] in ("reveal", "over")
++    assert saved(api).view() == body["game"]                          # what you were told is what was kept
++
++
++def test_an_illegal_bid_is_refused_with_the_rule_and_changes_nothing(api):
++    g = start(api).json()["game"]
++    before = api.router.store.get("josie")
++    for payload in ({"count": 0, "face": 2}, {"count": 99, "face": 2}, {"count": 1, "face": 7}, {"count": "1", "face": 2},
++                    {"count": 1}, {"face": 2}, {"count": True, "face": 2}):
++        r = api.post(URL + "/bid", headers=JOSIE, json={**payload, "expected_move": g["move"]})
++        assert r.status_code == 400 and isinstance(r.json()["detail"], str), payload
++    assert api.router.store.get("josie") == before
++
++
++def test_you_cannot_call_with_no_bid_on_the_table(api):
++    g = start(api).json()["game"]
++    r = api.post(URL + "/call", headers=JOSIE, json={"expected_move": g["move"]})
++    assert r.status_code == 400 and "no bid" in r.json()["detail"]
++
++
++def test_a_stale_click_is_refused_with_the_current_table(api):
++    g = start(api).json()["game"]
++    ok = api.post(URL + "/bid", headers=JOSIE, json={"count": 1, "face": 2, "expected_move": g["move"]})
++    assert ok.status_code == 200
++    # the same click arrives again (double tap, a second tab)
++    stale = api.post(URL + "/bid", headers=JOSIE, json={"count": 1, "face": 3, "expected_move": g["move"]})
++    assert stale.status_code == 409
++    d = stale.json()["detail"]
++    assert d["game"] == ok.json()["game"] and "moved on" in d["message"]
++    for bad in (None, "0", 1.5, True, -1):
++        r = api.post(URL + "/call", headers=JOSIE, json={"expected_move": bad} if bad is not None else {})
++        assert r.status_code in (400, 409)
++
++
++def _play_until(api, want):
++    """Human bids the lowest legal raise or calls once a bid is on the table, until `want(game)` holds."""
++    game = api.get(URL, headers=JOSIE).json()["game"]
++    for _ in range(400):
++        if want(game):
++            return game
++        if game["phase"] == "reveal":
++            r = api.post(URL + "/next", headers=JOSIE, json={"expected_move": game["move"]})
++        elif game["bid"] is not None and game["can_call"] and (not game["can_raise"] or game["bid"]["count"] >= 4):
++            r = api.post(URL + "/call", headers=JOSIE, json={"expected_move": game["move"]})
++        else:
++            c, f = (1, 1) if game["bid"] is None else ((game["bid"]["count"], game["bid"]["face"] + 1) if game["bid"]["face"] < 6
++                                                       else (game["bid"]["count"] + 1, 1))
++            r = api.post(URL + "/bid", headers=JOSIE, json={"count": c, "face": f, "expected_move": game["move"]})
++        assert r.status_code == 200, r.text
++        game = r.json()["game"]
++    raise AssertionError("never reached the wanted state")
++
++
++def test_a_call_reveals_every_cup_then_the_next_round_hides_them(api):
++    start(api, opponents=1)
++    g = _play_until(api, lambda g: g["phase"] == "reveal")
++    rv = g["reveal"]
++    assert set(rv["hands"]) == {"you", "seat2"} and rv["loser"] in rv["hands"]
++    assert len(rv["hands"]["you"]) + len(rv["hands"]["seat2"]) == sum(len(h) for h in rv["hands"].values())
++    nxt = api.post(URL + "/next", headers=JOSIE, json={"expected_move": g["move"]})
++    assert nxt.status_code == 200
++    assert nxt.json()["game"]["reveal"] is None and "hands" not in json.dumps(nxt.json()["game"])
++    # asking for the next round when none is waiting is refused
++    again = api.post(URL + "/next", headers=JOSIE, json={"expected_move": nxt.json()["game"]["move"]})
++    assert again.status_code == 400
++
++
++def test_a_whole_game_can_be_played_through_the_routes_to_a_winner(api):
++    start(api, opponents=1)
++    g = _play_until(api, lambda g: g["phase"] == "over")
++    assert g["winner"] in ("you", "seat2", None) and sum(1 for s in g["seats"] if s["remaining"]) >= 1
++    assert api.post(URL + "/bid", headers=JOSIE, json={"count": 1, "face": 1, "expected_move": g["move"]}).status_code == 400
++    # a finished game may be replaced without saying so
++    assert start(api).status_code == 200
++
++
++def test_each_person_has_their_own_table(api):
++    mine = start(api).json()["game"]
++    theirs = api.get(URL, headers=auth("someone-else")).json()
++    assert theirs["game"] is None
++    other = start(api, headers=auth("someone-else"), opponents=3).json()["game"]
++    assert len(other["seats"]) == 4 and api.get(URL, headers=JOSIE).json()["game"]["game_id"] == mine["game_id"]
++    # leaving only forgets your own
++    assert api.delete(URL, headers=JOSIE).json() == {"ok": True, "game": None, "events": []}
++    assert api.get(URL, headers=JOSIE).json()["game"] is None
++    assert api.get(URL, headers=auth("someone-else")).json()["game"]["game_id"] == other["game_id"]
++
++
++def test_the_game_is_still_there_when_the_host_is_restarted(api, tmp_path):
++    g = start(api).json()["game"]
++    api.post(URL + "/bid", headers=JOSIE, json={"count": 1, "face": 2, "expected_move": g["move"]})
++    before = api.get(URL, headers=JOSIE).json()["game"]
++    app2 = FastAPI()
++    app2.include_router(create_liars_dice_router(tmp_path))          # a new host on the same data folder
++    with TestClient(app2) as c2:
++        assert c2.get(URL, headers=JOSIE).json()["game"] == before
++
++
++def test_a_damaged_save_does_not_lock_you_out_of_the_table(api, caplog):
++    start(api)
++    path = api.router.store.path_for("josie")
++    for damage in ("{not json", json.dumps({"progress": {"game": {"v": 99}}}), json.dumps({"progress": {"game": "x"}})):
++        path.write_text(damage, encoding="utf-8")
++        with caplog.at_level("WARNING"):
++            assert api.get(URL, headers=JOSIE).json()["game"] is None
++        assert start(api).status_code == 200                          # and a new game starts normally
++        assert api.get(URL, headers=JOSIE).json()["game"] is not None
++    assert any("unreadable Liar's Dice save" in m for m in caplog.messages)
++
++
++def test_the_saved_file_holds_the_hidden_dice_but_only_on_the_host(api):
++    start(api)
++    raw = api.router.store.path_for("josie").read_text(encoding="utf-8")
++    assert '"dice"' in raw and "josie" in raw
++    assert not list(api.data_dir.rglob("*.tmp"))                      # atomic replace left nothing behind
+diff --git a/tests/test_liars_dice_browser.py b/tests/test_liars_dice_browser.py
+new file mode 100644
+index 00000000..8d8ff8a1
+--- /dev/null
++++ b/tests/test_liars_dice_browser.py
+@@ -0,0 +1,235 @@
++"""Liar's Dice, as Josie uses it: the real PubCast host (run_reach.py), the real /walk page, a real Chromium.
++
++1. Walk into the Vortex Bar and click the booth table; the bubble offers the game; the table opens.
++2. Sit down against two opponents. Only your own dice are on the page. Walking keys do nothing while the table is open.
++3. Play by clicking: bid, get answered, call Liar, see every cup turned over, go to the next round.
++4. Esc leaves the table; the game is still there. Stop PubCast, start it again, and the same game resumes.
++5. With the host unreachable the table says so plainly and recovers when it is back.
++Skips when Playwright/Chromium is unavailable.
++"""
++from __future__ import annotations
++
++import json
++import os
++import secrets
++import socket
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++import httpx
++import pytest
++
++sync_api = pytest.importorskip("playwright.sync_api")
++
++ROOT = Path(__file__).resolve().parents[1]
++SHOTS = Path(os.environ.get("LIARSDICE_SHOTS", ""))
++
++
++def _free_port():
++    with socket.socket() as s:
++        s.bind(("127.0.0.1", 0))
++        return s.getsockname()[1]
++
++
++class Host:
++    def __init__(self, data):
++        self.data, self.port, self.proc = data, _free_port(), None
++        self.base = f"http://127.0.0.1:{self.port}"
++
++    def start(self):
++        env = dict(os.environ)
++        for k in ("PUBCAST_ENFORCE_AUTH", "PUBCAST_JWT_SECRET", "PUBCAST_DATA_DIR"):
++            env.pop(k, None)
++        self.log = open(self.data / "host.log", "a", encoding="utf-8")
++        self.proc = subprocess.Popen([sys.executable, "run_reach.py", "--port", str(self.port), "--data-dir", str(self.data),
++                                      "--no-browser", "--no-legacy-2i"], cwd=str(ROOT), env=env, stdout=self.log, stderr=subprocess.STDOUT)
++        deadline = time.time() + 90
++        while time.time() < deadline:
++            if self.proc.poll() is not None:
++                raise AssertionError("PubCast exited during startup")
++            try:
++                if httpx.get(self.base + "/health", timeout=0.5).status_code == 200:
++                    return
++            except httpx.RequestError:
++                pass
++            time.sleep(0.2)
++        raise AssertionError("PubCast did not start")
++
++    def stop(self):
++        self.proc.terminate()
++        try:
++            self.proc.wait(20)
++        except subprocess.TimeoutExpired:
++            self.proc.kill(); self.proc.wait(5)
++        self.log.close()
++
++
++def shot(page, name):
++    if str(SHOTS) and SHOTS.is_dir():
++        page.screenshot(path=str(SHOTS / name))
++
++
++def open_table(page):
++    """Click the booth table the way a person does: at its place in the picture."""
++    page.evaluate("window.PubCastWalk.goTo('vortex_bar', 'green_room')")
++    page.wait_for_function("window.PubCastWalk.S.room.id === 'vortex_bar'")
++    at = page.evaluate("() => window.PubCastWalk.S.view.hotspots.find(h => h.id === 'booth-table-dice').at")
++    sx, sy = page.evaluate("(p) => window.PubCastWalk.toScreen(p)", at)
++    box = page.locator("#c").bounding_box()
++    page.mouse.click(box["x"] + sx, box["y"] + sy)
++    page.wait_for_selector("#bubble:not([hidden])")
++    return page.locator("#bubble")
++
++
++def table_text(page):
++    return page.inner_text("#ldice")
++
++
++def test_the_booth_table_plays_liars_dice_and_the_game_survives_a_restart(tmp_path):
++    host = Host(tmp_path)
++    host.start()
++    try:
++        password = secrets.token_urlsafe(20)
++        owner = httpx.post(host.base + "/api/auth/setup", json={"username": "josie-dice", "password": password, "confirm_password": password}, timeout=10).json()
++        token = owner["access_token"]
++        init = ("sessionStorage.setItem('pubcast_token', %s); sessionStorage.setItem('pubcast_user', JSON.stringify({username:'josie-dice',user_id:'josie-dice',role:'owner'}));"
++                % json.dumps(token))
++
++        def session_page(browser):
++            ctx = browser.new_context(viewport={"width": 1400, "height": 860})
++            ctx.add_init_script(init)
++            pg = ctx.new_page(); pg.problems = []
++            pg.on("pageerror", lambda e: pg.problems.append(str(e)))
++            pg.on("console", lambda m: pg.problems.append(m.text) if m.type == "error" and "favicon" not in m.text else None)
++            pg.goto(host.base + "/walk?live=bar")
++            pg.wait_for_function("document.documentElement.dataset.ready === '1' && window.PubCastLive && window.PubCastLive.state.host === true", timeout=30000)
++            return ctx, pg
++
++        with sync_api.sync_playwright() as p:
++            try:
++                browser = p.chromium.launch(args=["--no-sandbox"])
++            except Exception as exc:
++                pytest.skip(f"no Chromium available: {exc}")
++            try:
++                ctx, page = session_page(browser)
++                bubble = open_table(page)
++                assert "Booth table" in bubble.inner_text() and "Not wired yet" not in bubble.inner_text()
++                shot(page, "01_bubble.png")
++                bubble.get_by_role("button", name="Play Liar’s Dice").click()
++                page.wait_for_selector("#ldice:not([hidden])")
++                page.wait_for_selector("text=Sit down and roll")
++                shot(page, "02_setup.png")
++
++                # walking keys do nothing while the table is open
++                before = page.evaluate("window.PubCastWalk.S.pos.slice()")
++                for key in ("ArrowRight", "d", "ArrowDown"):
++                    page.keyboard.down(key); page.wait_for_timeout(300); page.keyboard.up(key)
++                assert page.evaluate("window.PubCastWalk.S.pos") == pytest.approx(before, abs=0.01)
++
++                page.check("input[name=ld-opp][value='2']")
++                page.click("text=Sit down and roll")
++                page.wait_for_selector("#ldice .ld-seat")
++                assert page.locator("#ldice .ld-seat").count() == 3
++                shot(page, "03_round1.png")
++                # only your own five dice are on the page
++                page.wait_for_selector("#ldice .ld-hand .ld-die")
++                assert page.locator("#ldice .ld-hand .ld-die").count() == 5
++                api = lambda: httpx.get(host.base + "/api/minigames/liarsdice", headers={"Authorization": "Bearer " + token}).json()["game"]
++                first = api()
++                assert first["you"]["dice"] == page.eval_on_selector_all("#ldice .ld-hand .ld-die", "els => els.map(e => Number(e.getAttribute('aria-label').split(' ').pop()))")
++                assert "seat3" in table_text(page).lower().replace(" ", "") or "Seat 3" in table_text(page)
++
++                # play: bid the lowest raise, and call once the standing bid is high, until a round is revealed
++                revealed = False
++                for _ in range(80):
++                    page.wait_for_function("""() => !document.querySelector('#ldice .ld-bid[aria-hidden=true]') &&
++                        document.querySelector('#ldice .ld-actions button:not(:disabled)')""", timeout=30000)
++                    if page.locator("#ldice").get_by_role("button", name="Next round").count() or page.locator("#ldice .ld-hands").count():
++                        revealed = True; break
++                    call, bid = page.locator("#ldice .ld-call"), page.locator("#ldice .ld-bid-btn:not(:disabled)")
++                    if call.count() and (not bid.count() or _bid_is_high(page)):
++                        call.click()
++                    else:
++                        bid.click()
++                    page.wait_for_timeout(150)
++                assert revealed, "no round was ever revealed"
++                page.wait_for_timeout(1000)                                                         # let the dice finish tumbling
++                shot(page, "04_reveal.png")
++                text = table_text(page)
++                assert "Cups up" in text or "called" in text or "call " in text
++                # every cup is turned over: each seat that still has dice shows its hand, and the matching dice are marked
++                game = api()
++                assert game["phase"] in ("reveal", "over")
++                rows = page.locator("#ldice .ld-hands .row")
++                assert rows.count() == len(game["reveal"]["hands"])
++                shown = page.eval_on_selector_all("#ldice .ld-hands .row", "rows => rows.map(r => r.querySelectorAll('.ld-die').length)")
++                assert shown == [len(h) for h in game["reveal"]["hands"].values()]
++                assert page.locator("#ldice .ld-die.hit, #ldice .ld-die.miss, #ldice .ld-die.wild").count() == sum(shown)
++
++                if game["phase"] == "reveal":
++                    page.locator("#ldice").get_by_role("button", name="Next round").click()
++                    page.wait_for_function("() => document.querySelectorAll('#ldice .ld-hands').length === 0", timeout=20000)
++                    assert api()["reveal"] is None
++                    # the other cups are hidden again: only your own dice are on the page
++                    assert page.locator("#ldice .ld-hand .ld-die").count() == api()["seats"][0]["remaining"]
++
++                # Esc leaves the table and keeps the game
++                gid = api()["game_id"]
++                page.keyboard.press("Escape")
++                page.wait_for_selector("#ldice", state="hidden")
++                assert api()["game_id"] == gid
++                assert page.evaluate("window.PubCastWalk.S.room.id") == "vortex_bar"                 # Esc did not walk you back a room
++                assert page.problems == [], page.problems
++                ctx.close()
++            finally:
++                browser.close()
++
++        # quit PubCast, start it again, sit down again: the same game is waiting
++        host.stop()
++        host.start()
++        with sync_api.sync_playwright() as p:
++            browser = p.chromium.launch(args=["--no-sandbox"])
++            try:
++                ctx, page = session_page(browser)
++                bubble = open_table(page)
++                bubble.get_by_role("button", name="Play Liar’s Dice").click()
++                page.wait_for_selector("#ldice .ld-seat")
++                assert page.locator("#ldice .ld-seat").count() == 3
++                resumed = httpx.get(host.base + "/api/minigames/liarsdice", headers={"Authorization": "Bearer " + token}).json()["game"]
++                assert resumed["game_id"] == gid
++                assert "Welcome back" in page.inner_text("#ldice [role=status]")
++                shot(page, "05_resumed.png")
++
++                # the host unreachable: the table says so, keeps your place, and recovers
++                assert page.problems == [], page.problems
++                page.keyboard.press("Escape")
++                page.route("**/api/minigames/liarsdice**", lambda route: route.abort())
++                page.evaluate("window.PubCastLiarsDice.open()")
++                page.wait_for_selector("#ldice [role=alert]:not([hidden])")
++                assert "Can't reach the PubCast host" in page.inner_text("#ldice [role=alert]")
++                shot(page, "06_offline.png")
++                page.unroute("**/api/minigames/liarsdice**")
++                page.problems[:] = [m for m in page.problems if "ERR_FAILED" not in m]       # the failed request we caused on purpose
++                page.locator("#ldice").get_by_role("button", name="Try again").click()
++                page.wait_for_selector("#ldice .ld-seat")
++                assert page.locator("#ldice [role=alert]:not([hidden])").count() == 0
++
++                # forgetting takes two clicks and really forgets
++                page.click("#ldice .ld-forget")
++                page.click("#ldice .ld-forget-yes")
++                page.wait_for_selector("text=Sit down and roll")
++                assert httpx.get(host.base + "/api/minigames/liarsdice", headers={"Authorization": "Bearer " + token}).json()["game"] is None
++                assert page.problems == [], page.problems
++                ctx.close()
++            finally:
++                browser.close()
++    finally:
++        host.stop()
++
++
++def _bid_is_high(page):
++    """Call once the standing bid is 4 or more dice, otherwise keep raising by the minimum."""
++    return bool(page.evaluate("""() => { const m = /(\\d+) \\u00D7/.exec((document.querySelector('#ldice .ld-table > .ld-bid') || {}).textContent || '');
++                                         return !!m && Number(m[1]) >= 4; }"""))
+diff --git a/tests/test_liars_dice_engine.py b/tests/test_liars_dice_engine.py
+new file mode 100644
+index 00000000..a4372f06
+--- /dev/null
++++ b/tests/test_liars_dice_engine.py
+@@ -0,0 +1,422 @@
++"""Liar's Dice engine (modules/liars_dice.py): rules, hidden information, opponents, saving.
++
++The engine is pure Python, so these are real behaviour checks, not mocks: dice are stacked by hand for the rule
++cases, and the opponents are run through hundreds of seeded full games to prove they only ever play legal moves and
++that every game finishes.
++"""
++from __future__ import annotations
++
++import copy
++import itertools
++import json
++import random
++
++import pytest
++
++from modules.liars_dice import (
++    DICE_EACH, FACES, HUMAN_ID, STYLES, Game, RuleError, ai_decide, binomial_at_least, bid_probability, legal_raise,
++    new_game,
++)
++
++
++def stacked(hands, wild=False, styles=None, turn=0, seed=0):
++    """A game with exactly these dice (hands[0] is the human)."""
++    g = new_game(len(hands) - 1, wild, random.Random(seed))
++    for i, (seat, hand) in enumerate(zip(g.seats, hands)):
++        seat.dice, seat.remaining = list(hand), len(hand)
++        if styles and i:
++            seat.style = styles[i - 1]
++    g.turn = turn
++    return g
++
++
++# ── the arithmetic the opponents rely on ────────────────────────────────────────
++
++@pytest.mark.parametrize("n", [0, 1, 2, 3, 4, 5])
++def test_binomial_tail_matches_counting_every_outcome(n):
++    for k in range(-1, n + 2):
++        hits = sum(1 for roll in itertools.product(FACES, repeat=n) if sum(1 for d in roll if d == 3) >= k)
++        assert binomial_at_least(n, 1 / 6, k) == pytest.approx(hits / 6 ** n, abs=1e-12)
++
++
++def test_bid_probability_uses_own_dice_and_wild_ones():
++    g = stacked([[2, 2, 2], [3, 3, 3]], seed=1)
++    # holds three 2s itself: "3 x 2" is certain, "4 x 2" needs one of the other 3 dice (1/6 each)
++    assert bid_probability(g, 0, 3, 2) == 1.0
++    assert bid_probability(g, 0, 4, 2) == pytest.approx(1 - (5 / 6) ** 3)
++    w = stacked([[2, 2, 1], [3, 3, 3]], wild=True, seed=1)
++    # with wild ones the single 1 is a 2 as well, and each unseen die is a 2 or a 1 (2/6)
++    assert bid_probability(w, 0, 4, 2) == pytest.approx(1 - (4 / 6) ** 3)
++    # bidding on ones: ones are not wild there, so it needs three more literal ones, each 1/6
++    assert bid_probability(w, 0, 4, 1) == pytest.approx((1 / 6) ** 3)
++
++
++def test_ones_are_not_wild_when_the_bid_is_on_ones():
++    w = stacked([[1, 1, 4], [3, 3, 3]], wild=True)
++    assert bid_probability(w, 0, 3, 1) == pytest.approx(1 - (5 / 6) ** 3)         # needs one more literal 1 of 3 unseen: p = 1/6
++    assert bid_probability(w, 0, 2, 1) == 1.0
++
++
++# ── the rules ──────────────────────────────────────────────────────────────────
++
++@pytest.mark.parametrize("prev,new,total,ok", [
++    ((0, 0), (1, 1), 10, True), ((0, 0), (10, 6), 10, True), ((0, 0), (11, 1), 10, False), ((0, 0), (0, 3), 10, False),
++    ((3, 4), (4, 1), 10, True),                       # higher count, any face
++    ((3, 4), (3, 5), 10, True),                       # same count, higher face
++    ((3, 4), (3, 4), 10, False), ((3, 4), (3, 3), 10, False), ((3, 4), (2, 6), 10, False),
++    ((3, 4), (3, 7), 10, False), ((3, 4), (3, 0), 10, False),
++    ((10, 6), (10, 6), 10, False), ((9, 6), (10, 1), 10, True),
++])
++def test_what_counts_as_a_raise(prev, new, total, ok):
++    assert legal_raise(prev[0], prev[1], new[0], new[1], total) is ok
++
++
++@pytest.mark.parametrize("bad", [0, 4, -1, True, "2", 2.0, None])
++def test_the_number_of_opponents_is_one_to_three(bad):
++    with pytest.raises(RuleError):
++        new_game(bad)
++
++
++def test_a_new_game_has_you_first_and_five_dice_each():
++    for opponents in (1, 2, 3):
++        g = new_game(opponents, rng=random.Random(opponents))
++        assert len(g.seats) == opponents + 1 and g.seats[0].id == HUMAN_ID and g.seats[0].human
++        assert not any(s.human for s in g.seats[1:])
++        assert all(s.remaining == DICE_EACH and len(s.dice) == DICE_EACH and all(d in FACES for d in s.dice) for s in g.seats)
++        assert g.turn == 0 and g.phase == "bidding" and not g.has_bid and g.round == 1
++        assert {s.style for s in g.seats[1:]} <= set(STYLES)
++        assert len({s.id for s in g.seats}) == len(g.seats)
++
++
++def test_dice_come_from_the_system_generator_unless_one_is_given():
++    g = new_game(1)
++    assert type(g.rng).__name__ == "SystemRandom"
++
++
++def test_bids_are_checked_by_the_host():
++    g = stacked([[1, 2, 3], [4, 5, 6]])
++    for count, face in [(0, 3), (7, 3), (2, 0), (2, 7), (True, 3), (2, True), ("2", 3), (2.0, 3), (None, 3)]:
++        with pytest.raises(RuleError):
++            g.bid(0, count, face)
++    with pytest.raises(RuleError, match="turn"):
++        g.bid(1, 1, 1)                                              # not their turn
++    assert g.move == 0 and not g.has_bid                           # nothing above changed anything
++    g.bid(0, 2, 3)
++    with pytest.raises(RuleError, match="beat 2 x 3"):
++        g.bid(1, 2, 3)
++    with pytest.raises(RuleError, match="beat 2 x 3"):
++        g.bid(1, 1, 6)
++    g.bid(1, 2, 4)
++    assert g.turn == 0 and g.move == 2
++
++
++def test_you_cannot_call_before_anyone_has_bid():
++    g = stacked([[1, 2, 3], [4, 5, 6]])
++    with pytest.raises(RuleError, match="no bid"):
++        g.call(0)
++
++
++def test_a_true_bid_costs_the_caller_a_die():
++    g = stacked([[3, 3, 5], [3, 6, 6]])                              # four 3s in play
++    g.bid(0, 4, 3)
++    ev = g.call(1)
++    assert [e["type"] for e in ev] == ["call", "reveal", "lost_die"]
++    r = g.reveal
++    assert r["matching"] == 3 and r["bid_true"] is False             # three 3s: the bid of four was a lie
++    assert r["loser"] == HUMAN_ID and g.seats[0].remaining == 2 and g.seats[1].remaining == 3
++    g2 = stacked([[3, 3, 5], [3, 3, 6]])
++    g2.bid(0, 4, 3)
++    g2.call(1)
++    assert g2.reveal["bid_true"] is True and g2.reveal["loser"] == "seat2" and g2.seats[1].remaining == 2
++
++
++def test_the_bid_is_true_when_exactly_met():
++    g = stacked([[2, 2], [2, 5]])
++    g.bid(0, 3, 2)
++    g.call(1)
++    assert g.reveal["matching"] == 3 and g.reveal["bid_true"] is True and g.reveal["loser"] == "seat2"
++
++
++def test_wild_ones_count_for_every_face_but_ones():
++    g = stacked([[1, 1, 4], [4, 6, 6]], wild=True)
++    g.bid(0, 4, 4)                                                  # two 4s plus two wild ones
++    g.call(1)
++    assert g.reveal["matching"] == 4 and g.reveal["bid_true"] is True
++    g = stacked([[1, 1, 4], [4, 6, 6]], wild=True)
++    g.bid(0, 3, 1)                                                  # bidding on ones: only real ones count
++    g.call(1)
++    assert g.reveal["matching"] == 2 and g.reveal["bid_true"] is False
++    g = stacked([[1, 1, 4], [4, 6, 6]], wild=False)
++    g.bid(0, 4, 4)
++    g.call(1)
++    assert g.reveal["matching"] == 2 and g.reveal["bid_true"] is False
++
++
++def test_the_loser_opens_the_next_round_with_fresh_dice_and_no_bid():
++    g = stacked([[1, 2, 3], [4, 5, 6], [6, 6, 6]], seed=5)
++    g.bid(0, 2, 2)
++    g.bid(1, 2, 3)
++    g.call(2)                                                       # seat3 calls seat2's 2 x 3: only one 3 exists -> seat2 loses
++    assert g.reveal["loser"] == "seat2" and g.phase == "reveal" and g.next_first == 1
++    assert all(s.dice == [] for s in g.seats)
++    with pytest.raises(RuleError):
++        g.bid(1, 3, 3)                                              # no bidding between rounds
++    g.next_round()
++    assert g.round == 2 and g.turn == 1 and not g.has_bid and g.reveal is None and g.phase == "bidding"
++    assert [len(s.dice) for s in g.seats] == [s.remaining for s in g.seats] == [3, 2, 3]
++
++
++def test_an_eliminated_loser_hands_the_opening_to_the_next_seat_in():
++    g = stacked([[1, 2], [4], [6, 6]])
++    g.turn = 1
++    g.bid(1, 2, 4)                                                  # one 4 exists
++    g.call(2)
++    assert g.reveal["loser"] == "seat2" and g.seats[1].remaining == 0
++    assert g.next_first == 2                                        # seat2 is out, so seat3 opens
++    g.next_round()
++    assert g.turn == 2 and g.seats[1].dice == []
++
++
++def test_last_seat_standing_wins_and_play_stops():
++    g = stacked([[3], [3]])
++    g.bid(0, 2, 6)                                                  # a lie: nobody holds a six
++    ev = g.call(1)
++    assert ev[-1] == {"type": "over", "winner": "seat2", "human_won": False}
++    assert g.phase == "over" and g.winner == "seat2" and g.seats[0].remaining == 0
++    assert g.view()["you_out"] is True and g.view()["winner"] == "seat2"
++    for action in (lambda: g.bid(0, 1, 1), lambda: g.call(0), g.next_round):
++        with pytest.raises(RuleError):
++            action()
++
++
++def test_you_win_when_the_last_opponent_loses_their_last_die():
++    g = stacked([[3, 3], [4]])
++    g.bid(0, 2, 3)                                                  # true: two 3s
++    ev = g.call(1)                                                  # seat2 calls, is wrong, and it had one die left
++    assert g.reveal["bid_true"] is True and g.reveal["loser"] == "seat2"
++    assert g.phase == "over" and g.winner == HUMAN_ID
++    assert ev[-1] == {"type": "over", "winner": HUMAN_ID, "human_won": True}
++    v = g.view()
++    assert v["winner"] == HUMAN_ID and v["you_out"] is False and v["turn"] is None
++
++
++def test_the_game_ends_when_you_are_knocked_out_even_with_opponents_left():
++    g = stacked([[1], [2, 2], [3, 3]])
++    g.bid(0, 1, 6)
++    ev = g.call(1)
++    assert g.seats[0].remaining == 0 and g.phase == "over" and g.winner is None
++    assert ev[-1] == {"type": "over", "winner": None, "human_won": False}
++    assert sum(1 for s in g.seats if s.remaining) == 2
++
++
++# ── hidden information ─────────────────────────────────────────────────────────
++
++def test_the_view_holds_only_your_own_dice_while_bidding():
++    g = stacked([[1, 2, 3], [4, 5, 6], [6, 6, 6]])
++    g.bid(0, 1, 1)
++    v = g.view()
++    assert v["you"]["dice"] == [1, 2, 3]
++    assert v["reveal"] is None and v["phase"] == "bidding"
++    assert all("dice" not in s for s in v["seats"])
++    blob = json.dumps(v)
++    assert "hands" not in blob and "style" not in blob                 # opponents' thinking is not shown either
++    assert [s["remaining"] for s in v["seats"]] == [3, 3, 3]
++
++
++def test_a_call_turns_every_cup_over_and_the_next_round_hides_them_again():
++    g = stacked([[1, 2, 3], [4, 5, 6]])
++    g.bid(0, 1, 1)
++    g.call(1)
++    v = g.view()
++    assert v["phase"] == "reveal" and v["reveal"]["hands"] == {"you": [1, 2, 3], "seat2": [4, 5, 6]}
++    assert v["you"]["dice"] == [] and v["turn"] is None and v["bid"] is None
++    g.next_round()
++    v2 = g.view()
++    assert v2["reveal"] is None and len(v2["you"]["dice"]) == v2["seats"][0]["remaining"]
++    assert "hands" not in json.dumps(v2)
++
++
++def test_the_view_says_what_you_may_do():
++    g = stacked([[1, 2, 3], [4, 5, 6]])
++    v = g.view()
++    assert v["can_call"] is False and v["can_raise"] is True and v["turn"] == HUMAN_ID
++    g.bid(0, 6, 6)                                                  # the highest possible bid: nothing can beat it
++    g.turn = 0
++    v = g.view()
++    assert v["can_raise"] is False and v["can_call"] is True
++
++
++# ── the opponents ──────────────────────────────────────────────────────────────
++
++def _play(seed, wild, opponents):
++    """One whole game against a simple human: bids the lowest legal raise, calls half the time when it is likely false."""
++    rng = random.Random(seed)
++    g = new_game(opponents, wild, random.Random(seed + 10_000))
++    guard = 0
++    while g.phase != "over":
++        guard += 1
++        assert guard < 5000
++        if g.phase == "reveal":
++            g.next_round()
++            g.advance_ai()
++            continue
++        if g.turn != 0:
++            g.advance_ai()
++            continue
++        total = g.total_dice()
++        if g.has_bid and (not g.legal_raises() or rng.random() < 0.35):
++            g.call(0)
++        elif g.has_bid and bid_probability(g, 0, g.bid_count, g.bid_face) < 0.3 and rng.random() < 0.6:
++            g.call(0)
++        else:
++            c, f = g.legal_raises()[0] if rng.random() < 0.7 else rng.choice(g.legal_raises())
++            assert 1 <= c <= total
++            g.bid(0, c, f)
++        g.advance_ai()
++    return g
++
++
++@pytest.mark.parametrize("wild", [False, True])
++def test_opponents_play_only_legal_moves_and_every_game_finishes(wild):
++    results = []
++    for seed in range(200):
++        g = _play(seed, wild, 1 + seed % 3)
++        assert g.phase == "over"
++        assert g.winner is None or g.winner in {s.id for s in g.seats}
++        assert sum(1 for s in g.seats if s.remaining) >= 1
++        results.append(g.winner == HUMAN_ID)
++    # a human who bids the minimum and calls at random should lose most games but not all of them
++    assert 0 < sum(results) < len(results)
++
++
++def _call_rate(style, count, seeds=300):
++    calls = 0
++    for seed in range(seeds):
++        g = stacked([[1, 2, 3, 4, 5], [2, 2, 3, 6, 6], [1, 1, 1, 1, 1], [5, 5, 5, 5, 5]], styles=[style, "balanced", "balanced"], seed=seed)
++        g.bid(0, count, 2)
++        calls += ai_decide(g, 1) == ("call",)
++    return calls / seeds
++
++
++def test_opponents_call_more_as_the_bid_gets_less_believable_and_styles_differ():
++    # the opponent holds two 2s and cannot see 15 other dice; "4 x 2" needs two more, "9 x 2" needs seven
++    rates = {s: [_call_rate(s, c) for c in range(4, 10)] for s in STYLES}
++    for style, series in rates.items():
++        assert series == sorted(series), (style, series)           # never calls less as the bid climbs
++        assert series[0] == 0.0 and series[-1] == 1.0, (style, series)
++    mid = lambda s: sum(rates[s])
++    assert mid("bold") < mid("balanced") < mid("cautious"), rates  # bolder opponents call less readily
++
++
++def test_an_opponent_always_calls_a_bid_it_can_see_is_impossible():
++    for style in STYLES:
++        for seed in range(50):
++            g = stacked([[1, 1, 1, 1, 1], [2, 2, 3, 3, 4]], styles=[style], seed=seed)
++            g.bid(0, 9, 6)                                          # nine 6s from ten dice, and it holds none
++            assert ai_decide(g, 1) == ("call",)
++
++
++def test_an_opponent_never_calls_a_bid_its_own_dice_already_make_true():
++    for style in STYLES:
++        for seed in range(50):
++            g = stacked([[1, 2, 3, 4, 5], [2, 2, 2, 2, 2]], styles=[style], seed=seed)
++            g.bid(0, 3, 2)                                          # it holds five 2s
++            decision = ai_decide(g, 1)
++            assert decision[0] == "bid"
++            g.bid(1, decision[1], decision[2])                      # and the raise it chose is legal
++
++
++def test_an_opponent_must_call_when_no_raise_is_left():
++    g = stacked([[1, 2], [3, 4]], styles=["bold"])
++    g.bid(0, 4, 6)
++    assert g.legal_raises() == [] and ai_decide(g, 1) == ("call",)
++
++
++def test_opening_bids_are_always_legal():
++    for wild in (False, True):
++        for style in STYLES:
++            for seed in range(120):
++                g = stacked([[1, 2, 3, 4, 5], [6, 6, 6, 1, 2]], wild=wild, styles=[style], turn=1, seed=seed)
++                d = ai_decide(g, 1)
++                assert d[0] == "bid"
++                g.bid(1, d[1], d[2])
++
++
++def test_the_same_seed_plays_the_same_game():
++    def run(seed):
++        g = new_game(3, False, random.Random(seed))
++        events = []
++        g.bid(0, 1, 2)
++        events += g.advance_ai()
++        record = g.to_record()
++        record.pop("game_id")                                       # unique per game on purpose
++        return json.dumps([events, record], sort_keys=True)
++    assert run(7) == run(7) and run(7) != run(8)
++
++
++# ── saving ─────────────────────────────────────────────────────────────────────
++
++def test_a_game_survives_being_written_and_read_back_in_every_phase():
++    g = new_game(3, True, random.Random(3))
++    g.bid(0, 2, 5)
++    g.advance_ai()
++    for step in range(3):
++        rec = json.loads(json.dumps(g.to_record()))
++        back = Game.from_record(rec)
++        assert back.to_record() == g.to_record() and back.view() == g.view()
++        if g.phase == "bidding" and g.turn == 0 and g.has_bid:
++            g.call(0)
++        elif g.phase == "reveal":
++            g.next_round(); g.advance_ai()
++        elif g.phase == "bidding" and g.turn == 0:
++            g.bid(0, *g.legal_raises()[0]); g.advance_ai()
++
++
++def _mutations():
++    base = new_game(2, False, random.Random(1))
++    base.bid(0, 2, 3)
++    base.advance_ai()
++    rec = base.to_record()
++    reveal_game = new_game(1, False, random.Random(1))
++    reveal_game.bid(0, 1, 1)
++    reveal_game.call(1)
++    rrec = reveal_game.to_record()
++    cases = {
++        "not a dict": [1, 2], "wrong version": {**rec, "v": 2}, "no seats": {**rec, "seats": []},
++        "five seats": {**rec, "seats": rec["seats"] * 2},
++        "dice out of range": {**rec, "seats": [{**rec["seats"][0], "dice": [7, 1, 1, 1, 1]}, *rec["seats"][1:]]},
++        "bool die": {**rec, "seats": [{**rec["seats"][0], "dice": [True, 1, 1, 1, 1]}, *rec["seats"][1:]]},
++        "dice count mismatch": {**rec, "seats": [{**rec["seats"][0], "dice": [1, 2]}, *rec["seats"][1:]]},
++        "remaining too big": {**rec, "seats": [{**rec["seats"][0], "remaining": 9}, *rec["seats"][1:]]},
++        "bad style": {**rec, "seats": [rec["seats"][0], {**rec["seats"][1], "style": "wild"}, rec["seats"][2]]},
++        "two humans": {**rec, "seats": [rec["seats"][0], {**rec["seats"][1], "human": True}, rec["seats"][2]]},
++        "human not first": {**rec, "seats": [rec["seats"][1], rec["seats"][0], rec["seats"][2]]},
++        "duplicate ids": {**rec, "seats": [rec["seats"][0], rec["seats"][1], {**rec["seats"][2], "id": rec["seats"][1]["id"]}]},
++        "turn out of range": {**rec, "turn": 9}, "bad phase": {**rec, "phase": "dancing"},
++        "half a bid": {**rec, "bid_face": 0, "bid_count": 2}, "bid beyond the dice": {**rec, "bid_count": 99},
++        "bad winner": {**rec, "winner": "nobody"}, "reveal during bidding": {**rec, "reveal": rrec["reveal"]},
++        "wild not bool": {**rec, "wild_ones": 1}, "empty game id": {**rec, "game_id": ""},
++        "reveal missing": {**rrec, "reveal": None}, "reveal junk": {**rrec, "reveal": {"hands": {}}},
++        "reveal bad hand": {**rrec, "reveal": {**rrec["reveal"], "hands": {"you": [9]}}},
++        "reveal unknown seat": {**rrec, "reveal": {**rrec["reveal"], "loser": "ghost"}},
++        "dice held between rounds": {**rrec, "seats": [{**rrec["seats"][0], "dice": [1]}, *rrec["seats"][1:]]},
++        "over without end": {**rrec, "phase": "over"},
++    }
++    return list(cases.items())
++
++
++@pytest.mark.parametrize("name,record", _mutations(), ids=[n for n, _ in _mutations()])
++def test_a_damaged_saved_game_is_refused_not_trusted(name, record):
++    with pytest.raises(ValueError, match="saved Liar's Dice game is not valid"):
++        Game.from_record(copy.deepcopy(record))
++
++
++def test_the_next_round_cannot_open_on_a_seat_that_is_out():
++    g = stacked([[1, 2], [4], [6, 6]])
++    g.turn = 1
++    g.bid(1, 2, 4)
++    g.call(2)
++    rec = g.to_record()
++    rec["next_first"] = 1
++    with pytest.raises(ValueError, match="out"):
++        Game.from_record(rec)
+diff --git a/tools/world_src/gen_placements.py b/tools/world_src/gen_placements.py
+index 5a692a3e..6f2a8c79 100644
+--- a/tools/world_src/gen_placements.py
++++ b/tools/world_src/gen_placements.py
+@@ -200,7 +200,10 @@ V["vortex_bar/main"] = view(
+     floor=[[[430,600],[540,540],[690,545],[720,640],[758,770],[790,802],[840,836],[880,870],[920,906],[960,934],[990,950],[0,950],[0,806],[100,794],[140,773],[180,749],[215,723],[226,700],[232,676],[250,671],[300,669],[345,656],[372,646],[400,624]]],
+     doors=[door("green_room", (610, 520), "confirmed", note="Door at the back of the room. Josie (2026-10-18): right, coming from the green room you enter through the very back door, the back wall at the top middle of the picture."),
+            door("parking_lot", (435, 480), note="Josie (2026-10-18): the front door into the parking lot is the door on the left, behind the three booths. I read it as the tall blue glass door beside the wall lamp (about 415-455 wide, 305-470 tall); the exact door is my guess, tell me if she meant another.")],
+-    hotspots=[{"id": "booth-sit", "label": "Sit (booth)", "at": [95, 725], "r": 40, "status": "proposed",
++    hotspots=[{"id": "booth-table-dice", "label": "Booth table: Liar's Dice", "at": [240, 585], "r": 45, "status": "proposed",
++               "note": "MY PROPOSAL, not yours: Josie asked for Liar's Dice at the bar and to click the table to play. I put the spot on the table of the nearest striped booth; the exact table is my reading of the picture, tell me if she meant another.",
++               "action": {"type": "custom", "event": "Sit down to a game of Liar's Dice against one to three opponents.", "minigame": "liarsdice"}},
++              {"id": "booth-sit", "label": "Sit (booth)", "at": [95, 725], "r": 40, "status": "proposed",
+                "note": "MY PROPOSAL, not yours: a place to sit in the nearest striped booth. What happens when you click is not decided.",
+                "action": {"type": "animation", "animation": "sit down in the booth"}},
+               {"id": "stool-sit-middle", "label": "Sit (bar stool)", "at": [836, 680], "r": 35, "status": "proposed",

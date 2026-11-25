@@ -21,3 +21,4 @@ Parts are copied here. The originals in the storage repos (pre-dec, Beyond-Octob
 | [live-sources](live-sources/) | 2026-11-25, main-assembly 2d0edaa1 | pre-dec `claude/live-sources-2026-11-22` f1d634e |
 | [2i-unified](2i-unified/) | 2026-11-25, main-assembly 89012cf7 | pre-dec `integration/2i-unified-2026-11-20` c514284 |
 | [director-dock](director-dock/) | 2026-11-25, main-assembly ec187b8a | pre-dec `codex/restore-director-dock` f66f285 |
+| [mini-console](mini-console/) | 2026-11-25, main-assembly 5396b0da | pre-dec `codex/restore-mini-console` 59675d6 |

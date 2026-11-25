@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connect this camera</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; background: #07090d; color: #dfe7f5; font: 15px/1.45 system-ui, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 14px; display: grid; gap: 12px; }
+  h1 { font-size: 18px; margin: 0; }
+  video { width: 100%; background: #0b0f16; border-radius: 8px; aspect-ratio: 16 / 9; object-fit: contain; }
+  label { display: grid; gap: 4px; font-size: 13px; color: #9fb0c8; }
+  select, input { font: inherit; padding: 9px; background: #101722; color: inherit; border: 1px solid #25324a; border-radius: 6px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { font: inherit; padding: 11px 16px; border-radius: 6px; border: 1px solid #36507d; background: #172640; color: inherit; flex: 1 1 auto; }
+  button:disabled { opacity: .4; }
+  button.rec { background: #5a1d24; border-color: #a14452; }
+  #meter { height: 10px; background: #101722; border-radius: 5px; overflow: hidden; }
+  #meter > div { height: 100%; width: 0; background: #4fd18b; transition: width .08s linear; }
+  #status { padding: 10px; background: #101722; border-radius: 6px; white-space: pre-wrap; font: 13px ui-monospace, monospace; }
+  #status.bad { border: 1px solid #a14452; }
+  a { color: #8fb8ff; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Connect this camera and microphone</h1>
+  <div id="status" role="status">Checking sign-in…</div>
+  <video id="preview" playsinline muted></video>
+  <div id="meter" aria-label="microphone level"><div></div></div>
+  <label>Name shown to the studio <input id="name" maxlength="64" value="Phone camera" autocomplete="off"></label>
+  <label>Camera <select id="cam"></select></label>
+  <label>Microphone <select id="mic"></select></label>
+  <div class="row">
+    <button id="connect" disabled>Connect</button>
+    <button id="record" class="rec" disabled>Record take</button>
+    <button id="disconnect" disabled>Disconnect</button>
+  </div>
+  <div class="row"><button id="retry" hidden>Retry upload</button></div>
+  <div id="result"></div>
+</main>
+<script src="/static/reach_auth.js"></script>
+<script src="/static/production25d_frame_publisher.js"></script>
+<script src="/static/camera_connect.js"></script>
+</body>
+</html>

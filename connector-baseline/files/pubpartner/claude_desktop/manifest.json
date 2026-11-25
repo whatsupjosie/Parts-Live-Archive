@@ -1,0 +1,14 @@
+{
+  "manifest_version": "0.3",
+  "name": "pubpartner-local",
+  "display_name": "PubPartner",
+  "version": "1.0.0",
+  "description": "Use the cartridge shared by PubPartner on this computer.",
+  "author": {"name": "PubPartner"},
+  "server": {
+    "type": "node",
+    "entry_point": "server.js",
+    "mcp_config": {"command": "node", "args": ["${__dirname}/server.js"]}
+  },
+  "tools": [{"name": "pp_brief", "description": "Read the selected PubPartner cartridge briefing."}]
+}
